@@ -1,0 +1,9 @@
+[Xfce Panel]
+Type=X-XFCE-PanelPlugin
+Name=Shopno Calendar
+Comment=Clock with a calendar flyout
+Icon=x-office-calendar
+X-XFCE-Module=shopno-calendar
+X-XFCE-Internal=false
+X-XFCE-Unique=false
+X-XFCE-API=2.0
