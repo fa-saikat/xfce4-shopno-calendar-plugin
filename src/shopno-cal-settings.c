@@ -1,0 +1,254 @@
+/*
+ * Copyright (C) 2026 FA Saikat
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ */
+
+#include "config.h"
+
+#include <langinfo.h>
+#include <string.h>
+
+#include "shopno-cal-settings.h"
+
+enum
+{
+  PROP_0,
+  PROP_LAYOUT,
+  PROP_CUSTOM_FORMAT,
+  PROP_USE_24H,
+  PROP_SHOW_SECONDS,
+  N_PROPERTIES
+};
+
+struct _ShopnoCalSettings
+{
+  GObject  __parent__;
+
+  guint    layout;
+  gchar   *custom_format;
+  gboolean use_24h;
+  gboolean show_seconds;
+};
+
+static GParamSpec *properties[N_PROPERTIES];
+
+G_DEFINE_TYPE (ShopnoCalSettings, shopno_cal_settings, G_TYPE_OBJECT)
+
+
+
+/* 12 or 24-hour time follows the locale until the user picks one, like
+ * Windows does with the regional format */
+static gboolean
+shopno_cal_settings_locale_uses_24h (void)
+{
+  const gchar *format = nl_langinfo (T_FMT);
+
+  return format == NULL
+         || (strstr (format, "%I") == NULL
+             && strstr (format, "%l") == NULL
+             && strstr (format, "%r") == NULL);
+}
+
+
+
+static void
+shopno_cal_settings_get_property (GObject    *object,
+                                  guint       prop_id,
+                                  GValue     *value,
+                                  GParamSpec *pspec)
+{
+  ShopnoCalSettings *self = SHOPNO_CAL_SETTINGS (object);
+
+  switch (prop_id)
+    {
+    case PROP_LAYOUT:
+      g_value_set_uint (value, self->layout);
+      break;
+
+    case PROP_CUSTOM_FORMAT:
+      g_value_set_string (value, self->custom_format);
+      break;
+
+    case PROP_USE_24H:
+      g_value_set_boolean (value, self->use_24h);
+      break;
+
+    case PROP_SHOW_SECONDS:
+      g_value_set_boolean (value, self->show_seconds);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
+}
+
+
+
+static void
+shopno_cal_settings_set_property (GObject      *object,
+                                  guint         prop_id,
+                                  const GValue *value,
+                                  GParamSpec   *pspec)
+{
+  ShopnoCalSettings *self = SHOPNO_CAL_SETTINGS (object);
+  const gchar       *str;
+
+  switch (prop_id)
+    {
+    case PROP_LAYOUT:
+      if (self->layout != g_value_get_uint (value))
+        {
+          self->layout = g_value_get_uint (value);
+          g_object_notify_by_pspec (object, pspec);
+        }
+      break;
+
+    case PROP_CUSTOM_FORMAT:
+      str = g_value_get_string (value);
+      if (str == NULL)
+        str = SHOPNO_CAL_DEFAULT_CUSTOM_FORMAT;
+      if (g_strcmp0 (self->custom_format, str) != 0)
+        {
+          g_free (self->custom_format);
+          self->custom_format = g_strdup (str);
+          g_object_notify_by_pspec (object, pspec);
+        }
+      break;
+
+    case PROP_USE_24H:
+      if (self->use_24h != g_value_get_boolean (value))
+        {
+          self->use_24h = g_value_get_boolean (value);
+          g_object_notify_by_pspec (object, pspec);
+        }
+      break;
+
+    case PROP_SHOW_SECONDS:
+      if (self->show_seconds != g_value_get_boolean (value))
+        {
+          self->show_seconds = g_value_get_boolean (value);
+          g_object_notify_by_pspec (object, pspec);
+        }
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
+}
+
+
+
+static void
+shopno_cal_settings_finalize (GObject *object)
+{
+  ShopnoCalSettings *self = SHOPNO_CAL_SETTINGS (object);
+
+  g_free (self->custom_format);
+
+  G_OBJECT_CLASS (shopno_cal_settings_parent_class)->finalize (object);
+}
+
+
+
+static void
+shopno_cal_settings_class_init (ShopnoCalSettingsClass *klass)
+{
+  GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+  object_class->get_property = shopno_cal_settings_get_property;
+  object_class->set_property = shopno_cal_settings_set_property;
+  object_class->finalize = shopno_cal_settings_finalize;
+
+  properties[PROP_LAYOUT] =
+    g_param_spec_uint ("layout", NULL, NULL,
+                       0, SHOPNO_CAL_LAYOUT_LAST, SHOPNO_CAL_LAYOUT_TWO_LINES,
+                       G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
+  properties[PROP_CUSTOM_FORMAT] =
+    g_param_spec_string ("custom-format", NULL, NULL,
+                         SHOPNO_CAL_DEFAULT_CUSTOM_FORMAT,
+                         G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
+  /* The default is replaced with the locale's in init */
+  properties[PROP_USE_24H] =
+    g_param_spec_boolean ("use-24h", NULL, NULL,
+                          TRUE,
+                          G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
+  properties[PROP_SHOW_SECONDS] =
+    g_param_spec_boolean ("show-seconds", NULL, NULL,
+                          FALSE,
+                          G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
+  g_object_class_install_properties (object_class, N_PROPERTIES, properties);
+}
+
+
+
+static void
+shopno_cal_settings_init (ShopnoCalSettings *self)
+{
+  self->layout = SHOPNO_CAL_LAYOUT_TWO_LINES;
+  self->custom_format = g_strdup (SHOPNO_CAL_DEFAULT_CUSTOM_FORMAT);
+  self->use_24h = shopno_cal_settings_locale_uses_24h ();
+  self->show_seconds = FALSE;
+}
+
+
+
+ShopnoCalSettings *
+shopno_cal_settings_new (void)
+{
+  return g_object_new (SHOPNO_TYPE_CAL_SETTINGS, NULL);
+}
+
+
+
+ShopnoCalLayout
+shopno_cal_settings_get_layout (ShopnoCalSettings *settings)
+{
+  g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), SHOPNO_CAL_LAYOUT_TWO_LINES);
+
+  return settings->layout;
+}
+
+
+
+const gchar *
+shopno_cal_settings_get_custom_format (ShopnoCalSettings *settings)
+{
+  g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), SHOPNO_CAL_DEFAULT_CUSTOM_FORMAT);
+
+  return settings->custom_format;
+}
+
+
+
+gboolean
+shopno_cal_settings_get_use_24h (ShopnoCalSettings *settings)
+{
+  g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), TRUE);
+
+  return settings->use_24h;
+}
+
+
+
+gboolean
+shopno_cal_settings_get_show_seconds (ShopnoCalSettings *settings)
+{
+  g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), FALSE);
+
+  return settings->show_seconds;
+}
