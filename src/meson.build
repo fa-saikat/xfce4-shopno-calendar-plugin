@@ -13,6 +13,7 @@ shopno_cal_core = static_library(
   'shopno-cal-core',
   sources: [
     'shopno-cal-clock.c',
+    'shopno-cal-dialog.c',
     'shopno-cal-format.c',
     'shopno-cal-settings.c',
   ],

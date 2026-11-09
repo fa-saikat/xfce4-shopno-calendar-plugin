@@ -1,2 +1,3 @@
 data/shopno-calendar.desktop.in
+src/shopno-cal-dialog.c
 src/shopno-cal-plugin.c

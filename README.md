@@ -29,7 +29,8 @@ time only, or your own format with the same codes as Xfce's Clock plugin.
 optional. The clock changes exactly when the minute does, and shows the
 right time straight after a resume, a clock change or a new time zone.
 On a vertical panel the text is turned; on a deskbar the date and time
-are stacked.
+are stacked. Change it in *Properties*, from the clock's right-click menu,
+with a live preview.
 
 ## Building
 
