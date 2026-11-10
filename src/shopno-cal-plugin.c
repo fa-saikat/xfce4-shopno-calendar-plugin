@@ -254,7 +254,7 @@ shopno_cal_plugin_about (XfcePanelPlugin *plugin)
                          "website", "https://github.com/fa-saikat/xfce4-shopno-calendar-plugin",
                          "license-type", GTK_LICENSE_GPL_2_0,
                          "authors", authors,
-                         "logo-icon-name", "x-office-calendar",
+                         "logo-icon-name", "shopno-calendar",
                          NULL);
 }
 
