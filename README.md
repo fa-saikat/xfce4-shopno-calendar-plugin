@@ -9,7 +9,7 @@ A clock and calendar flyout for the Xfce panel.
 
 > [!NOTE]
 > Shopno Calendar is in early development. It shows the time and date on the
-> panel; the calendar flyout is not there yet.
+> panel and a month calendar when clicked; moving between months comes next.
 
 ## Why this exists
 
@@ -31,6 +31,13 @@ right time straight after a resume, a clock change or a new time zone.
 On a vertical panel the text is turned; on a deskbar the date and time
 are stacked. Change it in *Properties*, from the clock's right-click menu,
 with a live preview.
+
+**Calendar flyout.** Click the clock for the time, large, the full date,
+and the month, with today as a filled square. The week starts on the day
+your locale uses. The flyout opens next to the clock on any panel edge,
+and closes on Escape, a click outside or another click on the clock. It
+takes every color from your GTK theme, light or dark; rules in
+`~/.config/gtk-3.0/gtk.css` can override its style.
 
 ## Building
 
@@ -69,6 +76,11 @@ Shopno Calendar builds on:
 - **[Xfce's Clock plugin](https://gitlab.xfce.org/xfce/xfce4-panel/-/tree/master/plugins/clock)**
   (GPL-2.0-or-later): the list of format codes that need the clock to
   update every second comes from its `clock-time.c` by Andrzej.
+- **[GTK](https://gitlab.gnome.org/GNOME/gtk)** (LGPL-2.1-or-later): the
+  locale's first day of the week is read from glibc the way `GtkCalendar`
+  does it.
+- **[Shopno Menu](https://github.com/fa-saikat/xfce4-shopno-menu-plugin)**:
+  the flyout opens, grabs input and closes the same way its menu does.
 - Projects whose calendars it learned from, without sharing code:
   [elementary's Date & Time indicator](https://github.com/elementary/wingpanel-indicator-datetime),
   [NiceCalendar](https://github.com/MSTAURUS/NiceCalendar) by MSTAURUS and

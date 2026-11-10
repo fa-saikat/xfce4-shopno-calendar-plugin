@@ -34,6 +34,9 @@ conf.set_quoted('GETTEXT_PACKAGE', gettext_package)
 # Linux; elsewhere the clock falls back to a GLib timeout
 conf.set('HAVE_TIMERFD',
          meson.get_compiler('c').has_header_symbol('sys/timerfd.h', 'TFD_TIMER_CANCEL_ON_SET'))
+# glibc; elsewhere the week starts on Monday
+conf.set('HAVE_NL_TIME_FIRST_WEEKDAY',
+         meson.get_compiler('c').has_header_symbol('langinfo.h', '_NL_TIME_FIRST_WEEKDAY'))
 conf.set_quoted('PACKAGE_LOCALE_DIR', localedir)
 conf.set_quoted('PACKAGE_VERSION', meson.project_version())
 configure_file(output: 'config.h', configuration: conf)
@@ -50,3 +53,7 @@ subdir('po')
 subdir('data')
 subdir('src')
 subdir('tests')
+
+if get_option('preview')
+  subdir('tools')
+endif
