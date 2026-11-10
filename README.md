@@ -43,6 +43,25 @@ and closes on Escape, a click outside or another click on the clock. It
 takes every color from your GTK theme, light or dark; rules in
 `~/.config/gtk-3.0/gtk.css` can override its style.
 
+## Installing
+
+Download the package for your distribution from the
+[latest release](https://github.com/fa-saikat/xfce4-shopno-calendar-plugin/releases/latest),
+then install it:
+
+| Distribution             | File                         | Install with                                                |
+|--------------------------|------------------------------|-------------------------------------------------------------|
+| Debian 13                | `*.debian13_amd64.deb`       | `sudo apt install ./xfce4-shopno-calendar-plugin_*.deb`     |
+| Ubuntu 24.04, Mint 22    | `*.ubuntu24.04_amd64.deb`    | `sudo apt install ./xfce4-shopno-calendar-plugin_*.deb`     |
+| Fedora                   | `*.fc*.x86_64.rpm`           | `sudo dnf install ./xfce4-shopno-calendar-plugin-*.rpm`     |
+| Arch Linux               | `*.pkg.tar.zst`              | `sudo pacman -U xfce4-shopno-calendar-plugin-*.pkg.tar.zst` |
+
+Each release also has a `SHA256SUMS` file to check the downloads with
+`sha256sum -c --ignore-missing SHA256SUMS`.
+
+Then restart the panel (`xfce4-panel -r`), right-click it, choose
+**Panel > Add New Items…**, and add **Shopno Calendar**.
+
 ## Building
 
 Dependencies: Meson 0.62+, a C compiler, gettext, GTK 3.24+, and the
@@ -100,3 +119,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Shopno Calendar is released under the
 [GNU General Public License v2.0 or later](COPYING).
+
+The icon in `data/icons/shopno-calendar.svg` is the ShopnoOS logo,
+© 2026 JaduPc, licensed under the GNU General Public License v3.0 or later. It
+stands in until Shopno Calendar has a logo of its own. ShopnoOS Linux is
+a trademark of JaduPc.

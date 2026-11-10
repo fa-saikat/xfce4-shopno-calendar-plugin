@@ -1,0 +1,13 @@
+xfce4-shopno-calendar-plugin (0.1.0-1) unstable; urgency=medium
+
+  * Initial release.
+  * Panel clock: time over date, one line, time only or a custom format,
+    12 or 24-hour time and optional seconds; updates on the minute and
+    straight after a resume, a clock change or a new time zone.
+  * Properties dialog with a live preview.
+  * Calendar flyout with the time, the full date and the month, today as
+    a filled square, in the GTK theme's colors.
+  * Navigation by arrows, mouse wheel and keyboard, with month and year
+    views; every day has an accessible name.
+
+ -- FA Saikat <fahimabrar.saikat@gmail.com>  Wed, 11 Nov 2026 12:00:00 +0600
