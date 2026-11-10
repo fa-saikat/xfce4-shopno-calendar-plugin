@@ -75,15 +75,65 @@ button.shopno-cal-date:hover label {
   text-decoration-line: underline;
 }
 
-/* Month grid */
+/* Month: title and arrows over the days, months or years */
 
 .shopno-cal-month {
   padding: 10px 14px 14px;
 }
 
-.shopno-cal-title {
-  padding: 4px 6px 8px;
+.shopno-cal-nav {
+  padding-bottom: 6px;
+}
+
+/* The theme's button look is replaced by a flat one in theme colors */
+button.shopno-cal-title,
+button.shopno-cal-arrow,
+button.shopno-cal-day,
+button.shopno-cal-cell {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  box-shadow: none;
+  text-shadow: none;
+  -gtk-icon-shadow: none;
+  color: @theme_fg_color;
+}
+
+button.shopno-cal-title:hover,
+button.shopno-cal-arrow:hover,
+button.shopno-cal-day:hover,
+button.shopno-cal-cell:hover {
+  background-color: alpha(@theme_fg_color, 0.08);
+}
+
+button.shopno-cal-title:active,
+button.shopno-cal-arrow:active,
+button.shopno-cal-day:active,
+button.shopno-cal-cell:active {
+  background-color: alpha(@theme_fg_color, 0.14);
+}
+
+button.shopno-cal-title {
+  padding: 4px 6px;
   font-weight: bold;
+}
+
+/* The years view cannot zoom out further; the title still reads normally */
+button.shopno-cal-title:disabled,
+button.shopno-cal-title:disabled label {
+  color: @theme_fg_color;
+}
+
+button.shopno-cal-arrow {
+  min-width: 32px;
+  min-height: 28px;
+}
+
+button.shopno-cal-arrow:disabled {
+  color: alpha(@theme_fg_color, 0.3);
 }
 
 .shopno-cal-grid {
@@ -97,20 +147,43 @@ button.shopno-cal-date:hover label {
   color: alpha(@theme_fg_color, 0.55);
 }
 
-.shopno-cal-day {
+button.shopno-cal-day {
   min-width: 40px;
   min-height: 36px;
   margin: 1px;
-  border-radius: 3px;
 }
 
-.shopno-cal-day.other-month {
+button.shopno-cal-cell {
+  margin: 3px;
+}
+
+/* Days of the months around, and years of the decades around */
+button.shopno-cal-day.outside,
+button.shopno-cal-cell.outside {
   color: alpha(@theme_fg_color, 0.4);
 }
 
-/* Today: a filled square in the theme's selection color */
-.shopno-cal-day.today {
+button.shopno-cal-cell:disabled {
+  color: alpha(@theme_fg_color, 0.2);
+}
+
+/* The selected day, month or year: a ring in the selection color, mixed
+ * with the text color to stand out on dark themes too */
+button.shopno-cal-day.selected,
+button.shopno-cal-cell.selected {
+  box-shadow: inset 0 0 0 2px mix(@theme_selected_bg_color, @theme_fg_color, 0.4);
+}
+
+/* Today, this month and this year: a filled square in the selection
+ * color, which needs no ring when selected */
+button.shopno-cal-day.today,
+button.shopno-cal-cell.today {
   background-color: @theme_selected_bg_color;
   color: @theme_selected_fg_color;
   font-weight: bold;
+}
+
+button.shopno-cal-day.today.selected,
+button.shopno-cal-cell.today.selected {
+  box-shadow: none;
 }
