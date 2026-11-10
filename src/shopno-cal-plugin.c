@@ -20,6 +20,7 @@
 #include <xfconf/xfconf.h>
 
 #include "shopno-cal-clock.h"
+#include "shopno-cal-dialog.h"
 #include "shopno-cal-format.h"
 #include "shopno-cal-settings.h"
 
@@ -163,6 +164,7 @@ shopno_cal_plugin_construct (XfcePanelPlugin *plugin)
 
   xfce_textdomain (GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR, "UTF-8");
 
+  xfce_panel_plugin_menu_show_configure (plugin);
   xfce_panel_plugin_menu_show_about (plugin);
 
   shopno_cal_plugin_load_settings (self);
@@ -225,6 +227,22 @@ shopno_cal_plugin_mode_changed (XfcePanelPlugin     *plugin,
 
 
 static void
+shopno_cal_plugin_configure_plugin (XfcePanelPlugin *plugin)
+{
+  ShopnoCalPlugin *self = (ShopnoCalPlugin *) plugin;
+  GtkWidget       *dialog;
+
+  dialog = shopno_cal_dialog_new (GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (plugin))),
+                                  self->settings, self->clock);
+
+  xfce_panel_plugin_block_menu (plugin);
+  g_signal_connect_swapped (dialog, "destroy", G_CALLBACK (xfce_panel_plugin_unblock_menu), plugin);
+  gtk_widget_show (dialog);
+}
+
+
+
+static void
 shopno_cal_plugin_about (XfcePanelPlugin *plugin)
 {
   const gchar *authors[] = { "FA Saikat <fahimabrar.saikat@gmail.com>", NULL };
@@ -251,6 +269,7 @@ shopno_cal_plugin_class_init (ShopnoCalPluginClass *klass)
   plugin_class->free_data = shopno_cal_plugin_free_data;
   plugin_class->size_changed = shopno_cal_plugin_size_changed;
   plugin_class->mode_changed = shopno_cal_plugin_mode_changed;
+  plugin_class->configure_plugin = shopno_cal_plugin_configure_plugin;
   plugin_class->about = shopno_cal_plugin_about;
 }
 
