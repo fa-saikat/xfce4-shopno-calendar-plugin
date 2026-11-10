@@ -60,3 +60,5 @@ mouse, wheel and keyboard. It takes every color from the GTK theme.
   filled square, in the GTK theme's colors
 - Navigation by arrows, mouse wheel and keyboard, with month and year
   views; every day has an accessible name
+- Turned text on vertical panels and a stacked clock on deskbars
+- ShopnoOS logo as the icon until the plugin has its own
