@@ -21,11 +21,16 @@
 
 #include "shopno-cal-clock.h"
 #include "shopno-cal-dialog.h"
+#include "shopno-cal-flyout.h"
 #include "shopno-cal-format.h"
 #include "shopno-cal-settings.h"
 
 /* Shown when a custom format gives nothing */
 #define FALLBACK_FORMAT "%H:%M"
+
+/* Space between the flyout and the panel, and the screen edges (as in
+ * Shopno Menu) */
+#define POPUP_GAP 12
 
 typedef struct _ShopnoCalPluginClass ShopnoCalPluginClass;
 typedef struct _ShopnoCalPlugin      ShopnoCalPlugin;
@@ -46,6 +51,7 @@ struct _ShopnoCalPlugin
 
   GtkWidget         *button;
   GtkWidget         *label;
+  GtkWidget         *flyout;
 };
 
 /* Resident: the settings and clock types are static GTypes, which do
@@ -117,6 +123,21 @@ shopno_cal_plugin_update_label (ShopnoCalPlugin *self)
 
 
 
+/* Every second while the flyout shows its seconds, otherwise as often as
+ * the panel format needs */
+static void
+shopno_cal_plugin_update_interval (ShopnoCalPlugin *self)
+{
+  guint interval = shopno_cal_format_interval (self->format);
+
+  if (self->flyout != NULL && gtk_widget_get_visible (self->flyout))
+    interval = SHOPNO_CAL_CLOCK_SECOND;
+
+  shopno_cal_clock_set_interval (self->clock, interval);
+}
+
+
+
 static void
 shopno_cal_plugin_update_format (ShopnoCalPlugin *self)
 {
@@ -129,7 +150,7 @@ shopno_cal_plugin_update_format (ShopnoCalPlugin *self)
                                           shopno_cal_settings_get_show_seconds (self->settings),
                                           mode == XFCE_PANEL_PLUGIN_MODE_DESKBAR);
 
-  shopno_cal_clock_set_interval (self->clock, shopno_cal_format_interval (self->format));
+  shopno_cal_plugin_update_interval (self);
   shopno_cal_plugin_update_label (self);
 }
 
@@ -149,6 +170,118 @@ shopno_cal_plugin_update_orientation (ShopnoCalPlugin *self)
                          mode == XFCE_PANEL_PLUGIN_MODE_HORIZONTAL ? GTK_JUSTIFY_RIGHT : GTK_JUSTIFY_CENTER);
 
   shopno_cal_plugin_update_format (self);
+}
+
+
+
+/*
+ * Flyout
+ */
+
+static void
+shopno_cal_plugin_flyout_visibility (ShopnoCalPlugin *self)
+{
+  gboolean visible = gtk_widget_get_visible (self->flyout);
+
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (self->button), visible);
+  xfce_panel_plugin_block_autohide (XFCE_PANEL_PLUGIN (self), visible);
+  shopno_cal_plugin_update_interval (self);
+}
+
+
+
+static void
+shopno_cal_plugin_add_gap (ShopnoCalPlugin *self,
+                           gint            *x,
+                           gint            *y)
+{
+  GdkDisplay     *display = gtk_widget_get_display (self->button);
+  GdkMonitor     *monitor;
+  GdkRectangle    geometry;
+  GtkRequisition  size;
+  gboolean        horizontal = TRUE;
+
+  /* Move the flyout away from the panel, on the side it opens towards */
+  switch (xfce_panel_plugin_arrow_type (XFCE_PANEL_PLUGIN (self)))
+    {
+    case GTK_ARROW_UP:
+      *y -= POPUP_GAP;
+      break;
+
+    case GTK_ARROW_DOWN:
+      *y += POPUP_GAP;
+      break;
+
+    case GTK_ARROW_LEFT:
+      *x -= POPUP_GAP;
+      horizontal = FALSE;
+      break;
+
+    case GTK_ARROW_RIGHT:
+      *x += POPUP_GAP;
+      horizontal = FALSE;
+      break;
+
+    default:
+      break;
+    }
+
+  /* and keep it clear of the screen edges along the panel */
+  monitor = gdk_display_get_monitor_at_window (display, gtk_widget_get_window (self->button));
+  if (monitor == NULL)
+    return;
+
+  gdk_monitor_get_geometry (monitor, &geometry);
+  gtk_widget_get_preferred_size (self->flyout, NULL, &size);
+
+  if (horizontal)
+    *x = MAX (geometry.x + POPUP_GAP, MIN (*x, geometry.x + geometry.width - size.width - POPUP_GAP));
+  else
+    *y = MAX (geometry.y + POPUP_GAP, MIN (*y, geometry.y + geometry.height - size.height - POPUP_GAP));
+}
+
+
+
+static void
+shopno_cal_plugin_popup (ShopnoCalPlugin *self)
+{
+  gint x, y;
+
+  if (self->flyout == NULL)
+    {
+      self->flyout = shopno_cal_flyout_new (self->settings, self->clock);
+      g_signal_connect_swapped (self->flyout, "show",
+                                G_CALLBACK (shopno_cal_plugin_flyout_visibility), self);
+      g_signal_connect_swapped (self->flyout, "hide",
+                                G_CALLBACK (shopno_cal_plugin_flyout_visibility), self);
+    }
+
+  gtk_window_set_screen (GTK_WINDOW (self->flyout), gtk_widget_get_screen (self->button));
+
+  xfce_panel_plugin_position_widget (XFCE_PANEL_PLUGIN (self), self->flyout, self->button, &x, &y);
+  shopno_cal_plugin_add_gap (self, &x, &y);
+  shopno_cal_flyout_popup (SHOPNO_CAL_FLYOUT (self->flyout), x, y);
+}
+
+
+
+static gboolean
+shopno_cal_plugin_button_press_event (GtkWidget       *button,
+                                      GdkEventButton  *event,
+                                      ShopnoCalPlugin *self)
+{
+  /* Leave Ctrl+click and other buttons to the panel */
+  if (event->button != 1
+      || event->type != GDK_BUTTON_PRESS
+      || (event->state & GDK_CONTROL_MASK) != 0)
+    return GDK_EVENT_PROPAGATE;
+
+  if (self->flyout != NULL && gtk_widget_get_visible (self->flyout))
+    gtk_widget_hide (self->flyout);
+  else
+    shopno_cal_plugin_popup (self);
+
+  return GDK_EVENT_STOP;
 }
 
 
@@ -183,6 +316,13 @@ static void
 shopno_cal_plugin_free_data (XfcePanelPlugin *plugin)
 {
   ShopnoCalPlugin *self = (ShopnoCalPlugin *) plugin;
+
+  if (self->flyout != NULL)
+    {
+      g_signal_handlers_disconnect_by_data (self->flyout, self);
+      gtk_widget_destroy (self->flyout);
+      self->flyout = NULL;
+    }
 
   g_signal_handlers_disconnect_by_data (self->clock, self);
   g_object_unref (self->clock);
@@ -283,8 +423,10 @@ shopno_cal_plugin_init (ShopnoCalPlugin *self)
   self->settings = shopno_cal_settings_new ();
   self->clock = shopno_cal_clock_new ();
 
-  self->button = xfce_panel_create_button ();
+  self->button = xfce_panel_create_toggle_button ();
   gtk_widget_set_name (self->button, "shopno-calendar-button");
+  g_signal_connect (self->button, "button-press-event",
+                    G_CALLBACK (shopno_cal_plugin_button_press_event), self);
   xfce_panel_plugin_add_action_widget (XFCE_PANEL_PLUGIN (self), self->button);
   gtk_container_add (GTK_CONTAINER (self), self->button);
 

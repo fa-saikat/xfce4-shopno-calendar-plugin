@@ -1,0 +1,116 @@
+/*
+ * Shopno Calendar default style.
+ *
+ * Colors are taken from the active GTK theme, so the flyout follows light
+ * and dark themes. Only geometry (spacing, sizes, radius) is set here.
+ * Users can override any rule from ~/.config/gtk-3.0/gtk.css.
+ *
+ * The flyout does not draw its own shadow: the window manager's
+ * compositor draws it around the window.
+ */
+
+window.shopno-cal-flyout,
+window.shopno-cal-flyout.background {
+  background-color: transparent;
+}
+
+/* Frame */
+
+.shopno-cal-frame {
+  border-radius: 3px;
+  border: 1px solid alpha(@theme_fg_color, 0.1);
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+}
+
+window.composited .shopno-cal-frame {
+  background-color: alpha(@theme_bg_color, 0.96);
+}
+
+/* Without a compositor there is no transparency, so draw a plain box */
+window:not(.composited) .shopno-cal-frame {
+  border-radius: 0;
+}
+
+/* Header: the time and the date */
+
+.shopno-cal-header {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid alpha(@theme_fg_color, 0.08);
+}
+
+.shopno-cal-time,
+.shopno-cal-seconds {
+  font-feature-settings: "tnum";
+}
+
+.shopno-cal-time {
+  font-size: 26pt;
+}
+
+.shopno-cal-seconds {
+  font-size: 15pt;
+  margin-left: 2px;
+  color: alpha(@theme_fg_color, 0.55);
+}
+
+button.shopno-cal-date,
+button.shopno-cal-date:hover,
+button.shopno-cal-date:active {
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  box-shadow: none;
+  /* The selection color alone is too dark on some dark themes */
+  color: mix(@theme_selected_bg_color, @theme_fg_color, 0.4);
+}
+
+button.shopno-cal-date label {
+  font-weight: bold;
+}
+
+button.shopno-cal-date:hover label {
+  text-decoration-line: underline;
+}
+
+/* Month grid */
+
+.shopno-cal-month {
+  padding: 10px 14px 14px;
+}
+
+.shopno-cal-title {
+  padding: 4px 6px 8px;
+  font-weight: bold;
+}
+
+.shopno-cal-grid {
+  font-feature-settings: "tnum";
+}
+
+.shopno-cal-weekday {
+  min-height: 28px;
+  font-size: smaller;
+  font-weight: bold;
+  color: alpha(@theme_fg_color, 0.55);
+}
+
+.shopno-cal-day {
+  min-width: 40px;
+  min-height: 36px;
+  margin: 1px;
+  border-radius: 3px;
+}
+
+.shopno-cal-day.other-month {
+  color: alpha(@theme_fg_color, 0.4);
+}
+
+/* Today: a filled square in the theme's selection color */
+.shopno-cal-day.today {
+  background-color: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+  font-weight: bold;
+}

@@ -35,8 +35,8 @@ meson compile -C build
 ./build/tools/shopno-calendar-preview --no-grab
 ```
 
-`--no-grab` stops the flyout from capturing all keyboard and mouse input.
-Settings are not saved.
+`--no-grab` stops the flyout from capturing all keyboard and mouse input,
+and `--12h` or `--24h` picks the time format. Settings are not saved.
 
 ## Code style
 
