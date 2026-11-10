@@ -66,12 +66,16 @@ test_weekday_names (void)
 {
   gchar *name;
 
-  name = shopno_cal_month_weekday_name (G_DATE_MONDAY);
+  name = shopno_cal_month_weekday_name (G_DATE_MONDAY, TRUE);
   g_assert_cmpstr (name, ==, "Mon");
   g_free (name);
 
-  name = shopno_cal_month_weekday_name (G_DATE_SUNDAY);
+  name = shopno_cal_month_weekday_name (G_DATE_SUNDAY, TRUE);
   g_assert_cmpstr (name, ==, "Sun");
+  g_free (name);
+
+  name = shopno_cal_month_weekday_name (G_DATE_SATURDAY, FALSE);
+  g_assert_cmpstr (name, ==, "Saturday");
   g_free (name);
 }
 
@@ -90,6 +94,77 @@ test_locale_week_start (void)
 
 
 
+static void
+test_week_start (void)
+{
+  g_assert_cmpuint (shopno_cal_month_week_start (SHOPNO_CAL_WEEK_START_MONDAY), ==, G_DATE_MONDAY);
+  g_assert_cmpuint (shopno_cal_month_week_start (SHOPNO_CAL_WEEK_START_SUNDAY), ==, G_DATE_SUNDAY);
+  g_assert_cmpuint (shopno_cal_month_week_start (SHOPNO_CAL_WEEK_START_SATURDAY), ==, G_DATE_SATURDAY);
+  g_assert_cmpuint (shopno_cal_month_week_start (SHOPNO_CAL_WEEK_START_LOCALE),
+                    ==, shopno_cal_month_locale_week_start ());
+}
+
+
+
+static void
+test_weekend (void)
+{
+  GDateWeekday day;
+  guint        count;
+
+  g_assert_true (shopno_cal_month_is_weekend (SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY, G_DATE_SATURDAY));
+  g_assert_true (shopno_cal_month_is_weekend (SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY, G_DATE_SUNDAY));
+  g_assert_false (shopno_cal_month_is_weekend (SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY, G_DATE_FRIDAY));
+
+  g_assert_true (shopno_cal_month_is_weekend (SHOPNO_CAL_WEEKEND_FRIDAY_SATURDAY, G_DATE_FRIDAY));
+  g_assert_true (shopno_cal_month_is_weekend (SHOPNO_CAL_WEEKEND_FRIDAY_SATURDAY, G_DATE_SATURDAY));
+  g_assert_false (shopno_cal_month_is_weekend (SHOPNO_CAL_WEEKEND_FRIDAY_SATURDAY, G_DATE_SUNDAY));
+
+  g_assert_true (shopno_cal_month_is_weekend (SHOPNO_CAL_WEEKEND_FRIDAY, G_DATE_FRIDAY));
+  g_assert_true (shopno_cal_month_is_weekend (SHOPNO_CAL_WEEKEND_SUNDAY, G_DATE_SUNDAY));
+
+  for (day = G_DATE_MONDAY, count = 0; day <= G_DATE_SUNDAY; day++)
+    count += shopno_cal_month_is_weekend (SHOPNO_CAL_WEEKEND_NONE, day);
+  g_assert_cmpuint (count, ==, 0);
+}
+
+
+
+static void
+check_row_week (GDateYear  year,
+                GDateMonth month,
+                GDateDay   day,
+                guint      expected)
+{
+  GDate start;
+
+  g_date_clear (&start, 1);
+  g_date_set_dmy (&start, day, month, year);
+  g_assert_cmpuint (shopno_cal_month_row_week (&start), ==, expected);
+}
+
+
+
+static void
+test_row_week (void)
+{
+  /* Monday 9 November 2026 is in ISO week 46 */
+  check_row_week (2026, G_DATE_NOVEMBER, 9, 46);
+  /* A Sunday row: Monday the 9th decides */
+  check_row_week (2026, G_DATE_NOVEMBER, 8, 46);
+  /* A Saturday row: Monday the 9th decides */
+  check_row_week (2026, G_DATE_NOVEMBER, 7, 46);
+
+  /* Around the new year: Monday 28 December 2026 is in week 53, and
+   * Monday 4 January 2027 in week 1 */
+  check_row_week (2026, G_DATE_DECEMBER, 28, 53);
+  check_row_week (2027, G_DATE_JANUARY, 3, 1);
+  /* Monday 29 December 2025 is already in week 1 of 2026 */
+  check_row_week (2025, G_DATE_DECEMBER, 29, 1);
+}
+
+
+
 int
 main (int    argc,
       char **argv)
@@ -100,6 +175,9 @@ main (int    argc,
   g_test_add_func ("/month/grid-start", test_grid_start);
   g_test_add_func ("/month/weekday-names", test_weekday_names);
   g_test_add_func ("/month/locale-week-start", test_locale_week_start);
+  g_test_add_func ("/month/week-start", test_week_start);
+  g_test_add_func ("/month/weekend", test_weekend);
+  g_test_add_func ("/month/row-week", test_row_week);
 
   return g_test_run ();
 }

@@ -31,12 +31,20 @@
 static gboolean opt_12h = FALSE;
 static gboolean opt_24h = FALSE;
 static gboolean opt_no_grab = FALSE;
+static gint     opt_week_start = SHOPNO_CAL_WEEK_START_LOCALE;
+static gint     opt_weekend = SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY;
+static gboolean opt_week_numbers = FALSE;
 
 static const GOptionEntry entries[] =
 {
   { "12h", 0, 0, G_OPTION_ARG_NONE, &opt_12h, "Use 12-hour time", NULL },
   { "24h", 0, 0, G_OPTION_ARG_NONE, &opt_24h, "Use 24-hour time", NULL },
   { "no-grab", 0, 0, G_OPTION_ARG_NONE, &opt_no_grab, "Do not grab the keyboard and pointer", NULL },
+  { "week-start", 0, 0, G_OPTION_ARG_INT, &opt_week_start,
+    "First day of the week: 0 region, 1 Monday, 2 Sunday, 3 Saturday", "N" },
+  { "weekend", 0, 0, G_OPTION_ARG_INT, &opt_weekend,
+    "Weekend: 0 Sat-Sun, 1 Fri-Sat, 2 Fri, 3 Sun, 4 none", "N" },
+  { "week-numbers", 0, 0, G_OPTION_ARG_NONE, &opt_week_numbers, "Show week numbers", NULL },
   { NULL }
 };
 
@@ -63,6 +71,11 @@ main (int    argc,
   settings = shopno_cal_settings_new ();
   if (opt_12h || opt_24h)
     g_object_set (settings, "use-24h", opt_24h, NULL);
+  g_object_set (settings,
+                "week-start", (guint) CLAMP (opt_week_start, 0, SHOPNO_CAL_WEEK_START_LAST),
+                "weekend", (guint) CLAMP (opt_weekend, 0, SHOPNO_CAL_WEEKEND_LAST),
+                "week-numbers", opt_week_numbers,
+                NULL);
 
   clock = shopno_cal_clock_new ();
   shopno_cal_clock_set_interval (clock, SHOPNO_CAL_CLOCK_SECOND);

@@ -95,6 +95,9 @@ shopno_cal_plugin_load_settings (ShopnoCalPlugin *self)
   shopno_cal_plugin_bind (self, "custom-format", G_TYPE_STRING);
   shopno_cal_plugin_bind (self, "use-24h", G_TYPE_BOOLEAN);
   shopno_cal_plugin_bind (self, "show-seconds", G_TYPE_BOOLEAN);
+  shopno_cal_plugin_bind (self, "week-start", G_TYPE_UINT);
+  shopno_cal_plugin_bind (self, "weekend", G_TYPE_UINT);
+  shopno_cal_plugin_bind (self, "week-numbers", G_TYPE_BOOLEAN);
 }
 
 
@@ -243,6 +246,37 @@ shopno_cal_plugin_add_gap (ShopnoCalPlugin *self,
 
 
 static void
+shopno_cal_plugin_get_position (ShopnoCalPlugin *self,
+                                gint            *x,
+                                gint            *y)
+{
+  xfce_panel_plugin_position_widget (XFCE_PANEL_PLUGIN (self), self->flyout, self->button, x, y);
+  shopno_cal_plugin_add_gap (self, x, y);
+}
+
+
+
+/* The flyout grows or shrinks while open when a setting such as the week
+ * numbers changes; keep it next to the button and on the screen */
+static void
+shopno_cal_plugin_flyout_resized (ShopnoCalPlugin *self)
+{
+  gint x, y;
+  gint old_x, old_y;
+
+  if (!gtk_widget_get_visible (self->flyout))
+    return;
+
+  shopno_cal_plugin_get_position (self, &x, &y);
+  gtk_window_get_position (GTK_WINDOW (self->flyout), &old_x, &old_y);
+
+  if (x != old_x || y != old_y)
+    gtk_window_move (GTK_WINDOW (self->flyout), x, y);
+}
+
+
+
+static void
 shopno_cal_plugin_popup (ShopnoCalPlugin *self)
 {
   gint x, y;
@@ -254,12 +288,13 @@ shopno_cal_plugin_popup (ShopnoCalPlugin *self)
                                 G_CALLBACK (shopno_cal_plugin_flyout_visibility), self);
       g_signal_connect_swapped (self->flyout, "hide",
                                 G_CALLBACK (shopno_cal_plugin_flyout_visibility), self);
+      g_signal_connect_swapped (self->flyout, "size-allocate",
+                                G_CALLBACK (shopno_cal_plugin_flyout_resized), self);
     }
 
   gtk_window_set_screen (GTK_WINDOW (self->flyout), gtk_widget_get_screen (self->button));
 
-  xfce_panel_plugin_position_widget (XFCE_PANEL_PLUGIN (self), self->flyout, self->button, &x, &y);
-  shopno_cal_plugin_add_gap (self, &x, &y);
+  shopno_cal_plugin_get_position (self, &x, &y);
   shopno_cal_flyout_popup (SHOPNO_CAL_FLYOUT (self->flyout), x, y);
 }
 

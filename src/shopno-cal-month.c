@@ -71,8 +71,71 @@ shopno_cal_month_grid_start (GDateYear     year,
 
 
 
+GDateWeekday
+shopno_cal_month_week_start (ShopnoCalWeekStart week_start)
+{
+  switch (week_start)
+    {
+    case SHOPNO_CAL_WEEK_START_MONDAY:
+      return G_DATE_MONDAY;
+
+    case SHOPNO_CAL_WEEK_START_SUNDAY:
+      return G_DATE_SUNDAY;
+
+    case SHOPNO_CAL_WEEK_START_SATURDAY:
+      return G_DATE_SATURDAY;
+
+    case SHOPNO_CAL_WEEK_START_LOCALE:
+    default:
+      return shopno_cal_month_locale_week_start ();
+    }
+}
+
+
+
+gboolean
+shopno_cal_month_is_weekend (ShopnoCalWeekend weekend,
+                             GDateWeekday     weekday)
+{
+  switch (weekend)
+    {
+    case SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY:
+      return weekday == G_DATE_SATURDAY || weekday == G_DATE_SUNDAY;
+
+    case SHOPNO_CAL_WEEKEND_FRIDAY_SATURDAY:
+      return weekday == G_DATE_FRIDAY || weekday == G_DATE_SATURDAY;
+
+    case SHOPNO_CAL_WEEKEND_FRIDAY:
+      return weekday == G_DATE_FRIDAY;
+
+    case SHOPNO_CAL_WEEKEND_SUNDAY:
+      return weekday == G_DATE_SUNDAY;
+
+    case SHOPNO_CAL_WEEKEND_NONE:
+    default:
+      return FALSE;
+    }
+}
+
+
+
+guint
+shopno_cal_month_row_week (const GDate *start)
+{
+  GDate monday = *start;
+
+  g_return_val_if_fail (g_date_valid (start), 0);
+
+  g_date_add_days (&monday, (G_DATE_MONDAY - g_date_get_weekday (start) + 7) % 7);
+
+  return g_date_get_iso8601_week_of_year (&monday);
+}
+
+
+
 gchar *
-shopno_cal_month_weekday_name (GDateWeekday weekday)
+shopno_cal_month_weekday_name (GDateWeekday weekday,
+                               gboolean     abbreviated)
 {
   GDateTime *day;
   gchar     *name;
@@ -81,7 +144,7 @@ shopno_cal_month_weekday_name (GDateWeekday weekday)
 
   /* 2024-01-01 is a Monday */
   day = g_date_time_new_utc (2024, 1, weekday, 0, 0, 0);
-  name = g_date_time_format (day, "%a");
+  name = g_date_time_format (day, abbreviated ? "%a" : "%A");
   g_date_time_unref (day);
 
   return name;

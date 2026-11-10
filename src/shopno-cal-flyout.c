@@ -64,6 +64,7 @@ struct _ShopnoCalFlyout
   GtkWidget         *stack;
   GtkWidget         *day_grid;
   GtkWidget         *weekday_labels[7];
+  GtkWidget         *week_labels[SHOPNO_CAL_MONTH_WEEKS];
   GtkWidget         *day_buttons[SHOPNO_CAL_MONTH_WEEKS * 7];
   GtkWidget         *month_buttons[12];
   GtkWidget         *year_buttons[12];
@@ -77,6 +78,7 @@ struct _ShopnoCalFlyout
   GDate              selected;
   GDate              today;
   GDateWeekday       week_start;
+  ShopnoCalWeekend   weekend;
   gdouble            scroll_delta;
 
   gboolean           grab_input;
@@ -209,22 +211,6 @@ shopno_cal_flyout_update_header (ShopnoCalFlyout *self,
  */
 
 static void
-shopno_cal_flyout_update_weekdays (ShopnoCalFlyout *self)
-{
-  guint  i;
-  gchar *name;
-
-  for (i = 0; i < 7; i++)
-    {
-      name = shopno_cal_month_weekday_name ((self->week_start - 1 + i) % 7 + 1);
-      gtk_label_set_text (GTK_LABEL (self->weekday_labels[i]), name);
-      g_free (name);
-    }
-}
-
-
-
-static void
 shopno_cal_flyout_set_accessible_name (GtkWidget   *widget,
                                        const gchar *name)
 {
@@ -232,6 +218,42 @@ shopno_cal_flyout_set_accessible_name (GtkWidget   *widget,
 
   if (accessible != NULL && name != NULL)
     atk_object_set_name (accessible, name);
+}
+
+
+
+/* The weekday of a column of the days view */
+static GDateWeekday
+shopno_cal_flyout_column_weekday (ShopnoCalFlyout *self,
+                                  guint            column)
+{
+  return (self->week_start - 1 + column) % 7 + 1;
+}
+
+
+
+static void
+shopno_cal_flyout_update_weekdays (ShopnoCalFlyout *self)
+{
+  GDateWeekday weekday;
+  guint        i;
+  gchar       *name;
+
+  for (i = 0; i < 7; i++)
+    {
+      weekday = shopno_cal_flyout_column_weekday (self, i);
+
+      name = shopno_cal_month_weekday_name (weekday, TRUE);
+      gtk_label_set_text (GTK_LABEL (self->weekday_labels[i]), name);
+      g_free (name);
+
+      name = shopno_cal_month_weekday_name (weekday, FALSE);
+      shopno_cal_flyout_set_accessible_name (self->weekday_labels[i], name);
+      g_free (name);
+
+      shopno_cal_flyout_set_class (self->weekday_labels[i], "weekend",
+                                   shopno_cal_month_is_weekend (self->weekend, weekday));
+    }
 }
 
 
@@ -296,6 +318,7 @@ shopno_cal_flyout_refresh_days (ShopnoCalFlyout *self)
   gchar     *name;
   gchar      number[4];
   guint      focus_day;
+  guint      week;
   guint      i;
 
   shopno_cal_month_grid_start (self->year, self->month, self->week_start, &self->grid_start);
@@ -311,7 +334,21 @@ shopno_cal_flyout_refresh_days (ShopnoCalFlyout *self)
                                   g_date_get_month (&date) != self->month,
                                   g_date_compare (&date, &self->today) == 0,
                                   g_date_compare (&date, &self->selected) == 0);
+      shopno_cal_flyout_set_class (self->day_buttons[i], "weekend",
+                                   shopno_cal_month_is_weekend (self->weekend,
+                                                                g_date_get_weekday (&date)));
       g_free (name);
+
+      if (i % 7 == 0)
+        {
+          week = shopno_cal_month_row_week (&date);
+          g_snprintf (number, sizeof (number), "%u", week);
+          gtk_label_set_text (GTK_LABEL (self->week_labels[i / 7]), number);
+
+          name = g_strdup_printf (_("Week %u"), week);
+          shopno_cal_flyout_set_accessible_name (self->week_labels[i / 7], name);
+          g_free (name);
+        }
 
       gtk_widget_set_can_focus (self->day_buttons[i], i == focus_day);
     }
@@ -621,6 +658,26 @@ shopno_cal_flyout_update (ShopnoCalFlyout *self)
     }
 
   g_date_time_unref (now);
+}
+
+
+
+static void
+shopno_cal_flyout_week_settings_changed (ShopnoCalFlyout *self)
+{
+  gboolean week_numbers = shopno_cal_settings_get_week_numbers (self->settings);
+  guint    i;
+
+  self->week_start = shopno_cal_month_week_start (shopno_cal_settings_get_week_start (self->settings));
+  self->weekend = shopno_cal_settings_get_weekend (self->settings);
+
+  for (i = 0; i < G_N_ELEMENTS (self->week_labels); i++)
+    gtk_widget_set_visible (self->week_labels[i], week_numbers);
+
+  shopno_cal_flyout_update_weekdays (self);
+
+  if (g_date_valid (&self->today))
+    shopno_cal_flyout_refresh (self);
 }
 
 
@@ -1029,6 +1086,13 @@ shopno_cal_flyout_constructed (GObject *object)
 
   g_signal_connect_swapped (self->settings, "notify::use-24h",
                             G_CALLBACK (shopno_cal_flyout_tick), self);
+  g_signal_connect_swapped (self->settings, "notify::week-start",
+                            G_CALLBACK (shopno_cal_flyout_week_settings_changed), self);
+  g_signal_connect_swapped (self->settings, "notify::weekend",
+                            G_CALLBACK (shopno_cal_flyout_week_settings_changed), self);
+  g_signal_connect_swapped (self->settings, "notify::week-numbers",
+                            G_CALLBACK (shopno_cal_flyout_week_settings_changed), self);
+  shopno_cal_flyout_week_settings_changed (self);
   g_signal_connect_swapped (self->clock, "tick",
                             G_CALLBACK (shopno_cal_flyout_tick), self);
 
@@ -1170,6 +1234,7 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
   self->grab_input = TRUE;
   self->view = VIEW_DAYS;
   self->week_start = shopno_cal_month_locale_week_start ();
+  self->weekend = SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY;
   g_date_clear (&self->today, 1);
   g_date_clear (&self->selected, 1);
   g_date_clear (&self->grid_start, 1);
@@ -1263,14 +1328,24 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
   gtk_stack_set_transition_duration (GTK_STACK (self->stack), 120);
   gtk_container_add (GTK_CONTAINER (events), self->stack);
 
-  /* Days: weekday names over six weeks */
+  /* Days: weekday names over six weeks, with an optional column of week
+   * numbers on the left. The days share the width; the week numbers take
+   * only what they need. */
   self->day_grid = shopno_cal_flyout_grid_new ("shopno-cal-days");
+  gtk_grid_set_column_homogeneous (GTK_GRID (self->day_grid), FALSE);
   gtk_stack_add_named (GTK_STACK (self->stack), self->day_grid, "days");
 
   for (i = 0; i < 7; i++)
     {
       self->weekday_labels[i] = shopno_cal_flyout_label_new ("shopno-cal-weekday");
-      gtk_grid_attach (GTK_GRID (self->day_grid), self->weekday_labels[i], i, 0, 1, 1);
+      gtk_grid_attach (GTK_GRID (self->day_grid), self->weekday_labels[i], i + 1, 0, 1, 1);
+    }
+
+  for (i = 0; i < G_N_ELEMENTS (self->week_labels); i++)
+    {
+      self->week_labels[i] = shopno_cal_flyout_label_new ("shopno-cal-week-number");
+      gtk_widget_set_no_show_all (self->week_labels[i], TRUE);
+      gtk_grid_attach (GTK_GRID (self->day_grid), self->week_labels[i], 0, i + 1, 1, 1);
     }
 
   for (i = 0; i < G_N_ELEMENTS (self->day_buttons); i++)
@@ -1278,7 +1353,7 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
       self->day_buttons[i] = shopno_cal_flyout_cell_new ("shopno-cal-day", i);
       g_signal_connect (self->day_buttons[i], "clicked",
                         G_CALLBACK (shopno_cal_flyout_day_clicked), self);
-      gtk_grid_attach (GTK_GRID (self->day_grid), self->day_buttons[i], i % 7, i / 7 + 1, 1, 1);
+      gtk_grid_attach (GTK_GRID (self->day_grid), self->day_buttons[i], i % 7 + 1, i / 7 + 1, 1, 1);
     }
 
   /* Months of the year, and years of the decade, in rows of four */
@@ -1305,8 +1380,6 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
                         G_CALLBACK (shopno_cal_flyout_year_clicked), self);
       gtk_grid_attach (GTK_GRID (grid), self->year_buttons[i], i % 4, i / 4, 1, 1);
     }
-
-  shopno_cal_flyout_update_weekdays (self);
 
   gtk_widget_show_all (self->frame);
 }
