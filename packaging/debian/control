@@ -1,0 +1,37 @@
+Source: xfce4-shopno-calendar-plugin
+Section: xfce
+Priority: optional
+Maintainer: FA Saikat <fahimabrar.saikat@gmail.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ gettext,
+ libglib2.0-dev,
+ libgtk-3-dev,
+ libxfce4panel-2.0-dev,
+ libxfce4ui-2-dev,
+ libxfce4util-dev,
+ libxfconf-0-dev,
+ meson,
+ ninja-build,
+ pkgconf,
+Standards-Version: 4.7.0
+Homepage: https://github.com/fa-saikat/xfce4-shopno-calendar-plugin
+Vcs-Browser: https://github.com/fa-saikat/xfce4-shopno-calendar-plugin
+Vcs-Git: https://github.com/fa-saikat/xfce4-shopno-calendar-plugin.git
+Rules-Requires-Root: no
+
+Package: xfce4-shopno-calendar-plugin
+Architecture: any
+Depends:
+ xfce4-panel,
+ ${misc:Depends},
+ ${shlibs:Depends},
+Description: Clock and calendar flyout for the Xfce panel
+ Shopno Calendar is a panel clock for Xfce with a calendar flyout, in
+ the spirit of the Windows 11 clock.
+ .
+ The clock shows the time over the date, on one line, the time only, or a
+ custom format, and updates exactly on the minute and straight after a
+ resume, a clock change or a new time zone. Clicking it opens a calendar
+ with the time, the full date and the month, which can be moved through
+ by mouse, wheel and keyboard. It takes every color from the GTK theme.
