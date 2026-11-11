@@ -21,6 +21,23 @@
 
 
 
+static gchar *
+shopno_cal_details_format (const GDate *date,
+                           const gchar *format)
+{
+  GDateTime *time;
+  gchar     *text;
+
+  time = g_date_time_new_utc (g_date_get_year (date), g_date_get_month (date),
+                              g_date_get_day (date), 0, 0, 0);
+  text = g_date_time_format (time, format);
+  g_date_time_unref (time);
+
+  return text;
+}
+
+
+
 /* "Today", "In 23 days", "3 days ago" */
 static gchar *
 shopno_cal_details_relative (const GDate *day,
@@ -49,27 +66,89 @@ shopno_cal_details_relative (const GDate *day,
 
 
 gchar *
+shopno_cal_details_day_title (const GDate *day,
+                              const GDate *today)
+{
+  g_return_val_if_fail (g_date_valid (day), NULL);
+  g_return_val_if_fail (g_date_valid (today), NULL);
+
+  if (g_date_compare (day, today) == 0)
+    return g_strdup (_("Today"));
+
+  /* The same format as the date in the flyout header */
+  return shopno_cal_details_format (day, _("%A, %-d %B %Y"));
+}
+
+
+
+gchar *
 shopno_cal_details_day (const GDate  *day,
                         const GDate  *today,
                         GDateWeekday  week_start)
 {
+  gchar *place;
   gchar *relative;
   gchar *text;
 
   g_return_val_if_fail (g_date_valid (day), NULL);
   g_return_val_if_fail (g_date_valid (today), NULL);
 
+  /* TRANSLATORS: the selected day's place in the year, such as "Week 49 ·
+   * Day 337 of 365": the week number, the day of the year and the days in
+   * the year */
+  place = g_strdup_printf (_("Week %u · Day %u of %u"),
+                           shopno_cal_month_day_week (day, week_start),
+                           g_date_get_day_of_year (day),
+                           g_date_is_leap_year (g_date_get_year (day)) ? 366 : 365);
+
+  /* The title already says "Today" */
+  if (g_date_compare (day, today) == 0)
+    return place;
+
   relative = shopno_cal_details_relative (day, today);
-  /* TRANSLATORS: the line under the calendar for the selected day, such
-   * as "In 23 days · Week 49 · Day 337 of 365". %s is "Today", "In 23
-   * days" or "3 days ago", then the week number, the day of the year and
-   * the days in the year. */
-  text = g_strdup_printf (_("%s · Week %u · Day %u of %u"),
-                          relative,
-                          shopno_cal_month_day_week (day, week_start),
-                          g_date_get_day_of_year (day),
-                          g_date_is_leap_year (g_date_get_year (day)) ? 366 : 365);
+  /* TRANSLATORS: such as "In 23 days · Week 49 · Day 337 of 365" */
+  text = g_strdup_printf (_("%s · %s"), relative, place);
   g_free (relative);
+  g_free (place);
+
+  return text;
+}
+
+
+
+gchar *
+shopno_cal_details_range_title (const GDate *first,
+                                const GDate *last)
+{
+  gchar *from;
+  gchar *to;
+  gchar *text;
+
+  g_return_val_if_fail (g_date_valid (first), NULL);
+  g_return_val_if_fail (g_date_valid (last), NULL);
+
+  if (g_date_compare (first, last) > 0)
+    {
+      const GDate *swap = first;
+      first = last;
+      last = swap;
+    }
+
+  /* The year once, at the end, when both days are in it */
+  if (g_date_get_year (first) == g_date_get_year (last))
+    /* TRANSLATORS: the first day of a range in the same year as the last,
+     * such as "10 Nov", see
+     * https://docs.gtk.org/glib/method.DateTime.format.html */
+    from = shopno_cal_details_format (first, _("%-d %b"));
+  else
+    /* TRANSLATORS: a day of a range with its year, such as "2 Dec 2026" */
+    from = shopno_cal_details_format (first, _("%-d %b %Y"));
+  to = shopno_cal_details_format (last, _("%-d %b %Y"));
+
+  /* TRANSLATORS: a range of days, such as "10 Nov → 2 Dec 2026" */
+  text = g_strdup_printf (_("%s → %s"), from, to);
+  g_free (to);
+  g_free (from);
 
   return text;
 }

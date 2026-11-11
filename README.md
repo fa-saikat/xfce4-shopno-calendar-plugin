@@ -37,12 +37,12 @@ and the month, with today as a filled square. The week starts on the day
 your locale uses, or on Monday, Sunday or Saturday if you choose. The
 weekend is tinted: Saturday and Sunday, Friday and Saturday as in
 Bangladesh and much of the Middle East, Friday only, Sunday only, or
-none. ISO 8601 week numbers can be shown left of the days. A line under
-the calendar describes the selected day, such as "In 23 days · Week 49 ·
-Day 337 of 365"; Shift-click a second day, or hold Shift with the arrow
-keys, to count the days between, such as "22 days apart (3 weeks, 1 day)
-· 17 working days including both", where working days skip the weekend.
-The line can be turned off. The arrows or
+none. ISO 8601 week numbers can be shown left of the days. Under the
+calendar, the selected day's details: its date, then "In 23 days ·
+Week 49 · Day 337 of 365". Shift-click a second day, or hold Shift with
+the arrow keys, to count the days between: "10 Nov → 2 Dec 2026", then
+"22 days apart (3 weeks, 1 day) · 17 working days including both", where
+working days skip the weekend. The details can be turned off. The arrows or
 the mouse wheel change the month; click the title to pick a month of the
 year, and again for a year of the decade. From the keyboard, the arrow
 keys move between days, Page Up and Page Down change the month, and Home

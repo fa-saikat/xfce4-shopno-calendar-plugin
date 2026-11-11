@@ -40,13 +40,19 @@ date (GDateYear  year,
 static void
 check_day (GDate        day,
            GDateWeekday week_start,
-           const gchar *expected)
+           const gchar *title,
+           const gchar *facts)
 {
   /* Tuesday 10 November 2026 */
   GDate  today = date (2026, G_DATE_NOVEMBER, 10);
-  gchar *text = shopno_cal_details_day (&day, &today, week_start);
+  gchar *text;
 
-  g_assert_cmpstr (text, ==, expected);
+  text = shopno_cal_details_day_title (&day, &today);
+  g_assert_cmpstr (text, ==, title);
+  g_free (text);
+
+  text = shopno_cal_details_day (&day, &today, week_start);
+  g_assert_cmpstr (text, ==, facts);
   g_free (text);
 }
 
@@ -55,18 +61,53 @@ check_day (GDate        day,
 static void
 test_day (void)
 {
-  check_day (date (2026, G_DATE_NOVEMBER, 10), G_DATE_MONDAY, "Today · Week 46 · Day 314 of 365");
-  check_day (date (2026, G_DATE_DECEMBER, 3), G_DATE_MONDAY, "In 23 days · Week 49 · Day 337 of 365");
-  check_day (date (2026, G_DATE_NOVEMBER, 11), G_DATE_MONDAY, "Tomorrow · Week 46 · Day 315 of 365");
-  check_day (date (2026, G_DATE_NOVEMBER, 9), G_DATE_MONDAY, "Yesterday · Week 46 · Day 313 of 365");
-  check_day (date (2026, G_DATE_NOVEMBER, 2), G_DATE_MONDAY, "8 days ago · Week 45 · Day 306 of 365");
+  check_day (date (2026, G_DATE_NOVEMBER, 10), G_DATE_MONDAY,
+             "Today", "Week 46 · Day 314 of 365");
+  check_day (date (2026, G_DATE_DECEMBER, 3), G_DATE_MONDAY,
+             "Thursday, 3 December 2026", "In 23 days · Week 49 · Day 337 of 365");
+  check_day (date (2026, G_DATE_NOVEMBER, 11), G_DATE_MONDAY,
+             "Wednesday, 11 November 2026", "Tomorrow · Week 46 · Day 315 of 365");
+  check_day (date (2026, G_DATE_NOVEMBER, 9), G_DATE_MONDAY,
+             "Monday, 9 November 2026", "Yesterday · Week 46 · Day 313 of 365");
+  check_day (date (2026, G_DATE_NOVEMBER, 2), G_DATE_MONDAY,
+             "Monday, 2 November 2026", "8 days ago · Week 45 · Day 306 of 365");
 
   /* The week of the row the day is in */
-  check_day (date (2026, G_DATE_NOVEMBER, 8), G_DATE_MONDAY, "2 days ago · Week 45 · Day 312 of 365");
-  check_day (date (2026, G_DATE_NOVEMBER, 8), G_DATE_SUNDAY, "2 days ago · Week 46 · Day 312 of 365");
+  check_day (date (2026, G_DATE_NOVEMBER, 8), G_DATE_MONDAY,
+             "Sunday, 8 November 2026", "2 days ago · Week 45 · Day 312 of 365");
+  check_day (date (2026, G_DATE_NOVEMBER, 8), G_DATE_SUNDAY,
+             "Sunday, 8 November 2026", "2 days ago · Week 46 · Day 312 of 365");
 
   /* A leap year */
-  check_day (date (2028, G_DATE_DECEMBER, 31), G_DATE_MONDAY, "In 782 days · Week 52 · Day 366 of 366");
+  check_day (date (2028, G_DATE_DECEMBER, 31), G_DATE_MONDAY,
+             "Sunday, 31 December 2028", "In 782 days · Week 52 · Day 366 of 366");
+}
+
+
+
+static void
+check_range_title (GDate        first,
+                   GDate        last,
+                   const gchar *expected)
+{
+  gchar *text = shopno_cal_details_range_title (&first, &last);
+
+  g_assert_cmpstr (text, ==, expected);
+  g_free (text);
+}
+
+
+
+static void
+test_range_title (void)
+{
+  /* The year once when both days are in it, in either order */
+  check_range_title (date (2026, G_DATE_NOVEMBER, 10), date (2026, G_DATE_DECEMBER, 2),
+                     "10 Nov → 2 Dec 2026");
+  check_range_title (date (2026, G_DATE_DECEMBER, 2), date (2026, G_DATE_NOVEMBER, 10),
+                     "10 Nov → 2 Dec 2026");
+  check_range_title (date (2026, G_DATE_DECEMBER, 28), date (2027, G_DATE_JANUARY, 4),
+                     "28 Dec 2026 → 4 Jan 2027");
 }
 
 
@@ -123,6 +164,7 @@ main (int    argc,
   g_test_init (&argc, &argv, NULL);
 
   g_test_add_func ("/details/day", test_day);
+  g_test_add_func ("/details/range-title", test_range_title);
   g_test_add_func ("/details/range", test_range);
 
   return g_test_run ();

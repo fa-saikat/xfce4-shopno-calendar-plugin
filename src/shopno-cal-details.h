@@ -21,19 +21,26 @@
 
 G_BEGIN_DECLS
 
-/* The line under the calendar for one day, such as
- * "In 23 days · Week 49 · Day 337 of 365". The week is numbered as the
- * grid numbers its rows when the week starts on week_start. */
-gchar *shopno_cal_details_day   (const GDate      *day,
-                                 const GDate      *today,
-                                 GDateWeekday      week_start);
+/* The details under the calendar have a title over a line of facts.
+ *
+ * For one day the title is "Today" or the full date, and the facts are
+ * such as "In 23 days · Week 49 · Day 337 of 365", without the "Today"
+ * part on today. The week is numbered as the grid numbers its rows when
+ * the week starts on week_start. */
+gchar *shopno_cal_details_day_title   (const GDate      *day,
+                                       const GDate      *today);
+gchar *shopno_cal_details_day         (const GDate      *day,
+                                       const GDate      *today,
+                                       GDateWeekday      week_start);
 
-/* The line under the calendar for two days, such as
- * "22 days apart (3 weeks, 1 day) · 17 working days including both".
- * The order of the two days does not matter. */
-gchar *shopno_cal_details_range (const GDate      *first,
-                                 const GDate      *last,
-                                 ShopnoCalWeekend  weekend);
+/* For two days the title is such as "10 Nov → 2 Dec 2026", and the facts
+ * such as "22 days apart (3 weeks, 1 day) · 17 working days including
+ * both". The order of the two days does not matter. */
+gchar *shopno_cal_details_range_title (const GDate      *first,
+                                       const GDate      *last);
+gchar *shopno_cal_details_range       (const GDate      *first,
+                                       const GDate      *last,
+                                       ShopnoCalWeekend  weekend);
 
 G_END_DECLS
 
