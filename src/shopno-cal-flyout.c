@@ -126,6 +126,11 @@ shopno_cal_flyout_load_css (GdkScreen *screen)
   if (loaded)
     return;
 
+  /* Icons that not every theme has, or draws alike, such as the settings
+   * gear: themes without symbolic icons, like Tango, fall back to
+   * mismatched ones */
+  gtk_icon_theme_add_resource_path (gtk_icon_theme_get_for_screen (screen), "/org/shopnoos/calendar/icons");
+
   provider = gtk_css_provider_new ();
   gtk_css_provider_load_from_resource (provider, "/org/shopnoos/calendar/shopno-calendar.css");
   gtk_style_context_add_provider_for_screen (screen,
@@ -1962,7 +1967,7 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
   gtk_box_pack_start (GTK_BOX (self->footer), self->status_label, TRUE, TRUE, 0);
 
   /* Packed from the right: the settings button, then copy */
-  self->time_settings_button = shopno_cal_flyout_arrow_new ("emblem-system-symbolic");
+  self->time_settings_button = shopno_cal_flyout_arrow_new ("shopno-calendar-settings-symbolic");
   gtk_widget_set_valign (self->time_settings_button, GTK_ALIGN_CENTER);
   gtk_widget_set_no_show_all (self->time_settings_button, TRUE);
   gtk_widget_set_tooltip_text (self->time_settings_button, _("Date & Time settings"));

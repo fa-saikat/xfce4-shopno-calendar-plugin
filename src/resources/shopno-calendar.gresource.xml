@@ -2,5 +2,6 @@
 <gresources>
   <gresource prefix="/org/shopnoos/calendar">
     <file>shopno-calendar.css</file>
+    <file>icons/scalable/actions/shopno-calendar-settings-symbolic.svg</file>
   </gresource>
 </gresources>
