@@ -1,5 +1,5 @@
 Name:           xfce4-shopno-calendar-plugin
-Version:        0.1.0
+Version:        1.0.0
 Release:        1%{?dist}
 Summary:        Clock and calendar flyout for the Xfce panel
 
@@ -29,7 +29,10 @@ The clock shows the time over the date, on one line, the time only, or a
 custom format, and updates exactly on the minute and straight after a
 resume, a clock change or a new time zone. Clicking it opens a calendar
 with the time, the full date and the month, which can be moved through by
-mouse, wheel and keyboard. It takes every color from the GTK theme.
+mouse, wheel and keyboard. Under the calendar are the selected day's
+details, or the days between two dates, and a countdown timer; the footer
+copies the date or time and shows whether the clock is synced. It takes
+every color from the GTK theme, and can blur the background with picom.
 
 %prep
 %autosetup
@@ -51,6 +54,26 @@ mouse, wheel and keyboard. It takes every color from the GTK theme.
 %{_datadir}/icons/hicolor/scalable/apps/shopno-calendar.svg
 
 %changelog
+* Thu Nov 12 2026 FA Saikat <fahimabrar.saikat@gmail.com> - 1.0.0-1
+- First stable release
+- Calendar options: the first day of the week, the weekend days (including
+  Friday and Saturday) and ISO 8601 week numbers
+- Day details under the calendar, and the days between two dates with
+  Shift-click or Shift and the arrow keys, with working days
+- Full date, week number and day of the year in the panel clock's tooltip
+- Copy button for the date or time: ISO, local or long date, date and
+  time, or Unix time
+- Clock sync status from systemd-timedated, and a button for the system's
+  Date & Time settings
+- Countdown timer with presets or any length up to 4 hours, remembered
+  between sessions. It shows the time left on the panel and ends with a
+  desktop notification that can restart it
+- Optional background blur with picom; the rules are in
+  extras/picom/shopno-calendar.conf
+- The seconds in the flyout header are the same size as the time
+- A broken translation of a date format is handled safely, and the
+  flyout no longer relays out unchanged text every second
+
 * Wed Nov 11 2026 FA Saikat <fahimabrar.saikat@gmail.com> - 0.1.0-1
 - Initial release
 - Panel clock: time over date, one line, time only or a custom format,
