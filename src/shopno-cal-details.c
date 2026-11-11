@@ -212,3 +212,25 @@ shopno_cal_details_range (const GDate      *first,
 
   return text;
 }
+
+
+
+gchar *
+shopno_cal_details_tooltip (const GDate  *today,
+                            GDateWeekday  week_start)
+{
+  gchar *date;
+  gchar *facts;
+  gchar *markup;
+
+  g_return_val_if_fail (g_date_valid (today), NULL);
+
+  /* The same format as the date in the flyout header */
+  date = shopno_cal_details_format (today, _("%A, %-d %B %Y"));
+  facts = shopno_cal_details_day (today, today, week_start);
+  markup = g_markup_printf_escaped ("<b>%s</b>\n<span alpha=\"60%%\">%s</span>", date, facts);
+  g_free (facts);
+  g_free (date);
+
+  return markup;
+}

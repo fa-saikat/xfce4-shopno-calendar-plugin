@@ -42,6 +42,11 @@ gchar *shopno_cal_details_range       (const GDate      *first,
                                        const GDate      *last,
                                        ShopnoCalWeekend  weekend);
 
+/* The Pango markup of the panel clock's tooltip: the full date in bold
+ * over today's facts, dimmed, such as "Week 46 · Day 315 of 365" */
+gchar *shopno_cal_details_tooltip     (const GDate      *today,
+                                       GDateWeekday      week_start);
+
 G_END_DECLS
 
 #endif /* !__SHOPNO_CAL_DETAILS_H__ */

@@ -69,6 +69,7 @@ ShopnoCalWeekStart shopno_cal_settings_get_week_start    (ShopnoCalSettings *set
 ShopnoCalWeekend   shopno_cal_settings_get_weekend       (ShopnoCalSettings *settings);
 gboolean           shopno_cal_settings_get_week_numbers  (ShopnoCalSettings *settings);
 gboolean           shopno_cal_settings_get_day_details   (ShopnoCalSettings *settings);
+gboolean           shopno_cal_settings_get_show_tooltip  (ShopnoCalSettings *settings);
 
 G_END_DECLS
 

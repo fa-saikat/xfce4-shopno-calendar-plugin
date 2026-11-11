@@ -29,8 +29,9 @@ time only, or your own format with the same codes as Xfce's Clock plugin.
 optional. The clock changes exactly when the minute does, and shows the
 right time straight after a resume, a clock change or a new time zone.
 On a vertical panel the text is turned; on a deskbar the date and time
-are stacked. Change it in *Properties*, from the clock's right-click menu,
-with a live preview.
+are stacked. Hover over it for the full date, the week number and the
+day of the year. Change it in *Properties*, from the clock's right-click
+menu, with a live preview.
 
 **Calendar flyout.** Click the clock for the time, large, the full date,
 and the month, with today as a filled square. The week starts on the day
