@@ -38,8 +38,6 @@ void       shopno_cal_flyout_popup          (ShopnoCalFlyout   *flyout,
                                              gint               x,
                                              gint               y);
 
-void       shopno_cal_flyout_show_today     (ShopnoCalFlyout   *flyout);
-
 void       shopno_cal_flyout_set_grab_input (ShopnoCalFlyout   *flyout,
                                              gboolean           grab_input);
 
