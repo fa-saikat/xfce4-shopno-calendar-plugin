@@ -72,6 +72,6 @@ body:
     id: environment
     attributes:
       label: Shopno Calendar version, distribution and Xfce version
-      placeholder: 0.1.0, Debian 13, Xfce 4.20
+      placeholder: 1.0.0, Debian 13, Xfce 4.20
     validations:
       required: true

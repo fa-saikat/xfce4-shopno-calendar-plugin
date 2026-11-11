@@ -37,4 +37,8 @@ Description: Clock and calendar flyout for the Xfce panel
  custom format, and updates exactly on the minute and straight after a
  resume, a clock change or a new time zone. Clicking it opens a calendar
  with the time, the full date and the month, which can be moved through
- by mouse, wheel and keyboard. It takes every color from the GTK theme.
+ by mouse, wheel and keyboard. Under the calendar are the selected day's
+ details, or the days between two dates, and a countdown timer; the
+ footer copies the date or time and shows whether the clock is synced.
+ It takes every color from the GTK theme, and can blur the background
+ with picom.

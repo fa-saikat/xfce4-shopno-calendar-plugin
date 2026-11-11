@@ -7,10 +7,6 @@
 
 A clock and calendar flyout for the Xfce panel.
 
-> [!NOTE]
-> Shopno Calendar is in early development. It shows the time and date on the
-> panel and a calendar when clicked; more of the flyout is on the way.
-
 ## Why this exists
 
 I'm building it for [ShopnoOS](https://github.com/fa-saikat/shopno-os), next to
