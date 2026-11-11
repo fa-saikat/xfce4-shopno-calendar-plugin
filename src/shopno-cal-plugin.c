@@ -119,6 +119,7 @@ shopno_cal_plugin_load_settings (ShopnoCalPlugin *self)
   shopno_cal_plugin_bind (self, "copy-button", G_TYPE_BOOLEAN);
   shopno_cal_plugin_bind (self, "time-settings-command", G_TYPE_STRING);
   shopno_cal_plugin_bind (self, "timer", G_TYPE_BOOLEAN);
+  shopno_cal_plugin_bind (self, "timer-minutes", G_TYPE_UINT);
 }
 
 

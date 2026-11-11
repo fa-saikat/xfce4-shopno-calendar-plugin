@@ -90,6 +90,7 @@ struct _ShopnoCalFlyout
   GtkWidget         *range_facts;
   GtkWidget         *timer_section;
   GtkWidget         *timer_ring;
+  GtkWidget         *timer_length;
   GtkWidget         *timer_readout;
   GtkWidget         *timer_presets[G_N_ELEMENTS (timer_presets)];
   GtkWidget         *timer_start;
@@ -116,6 +117,7 @@ struct _ShopnoCalFlyout
   GDateWeekday       week_start;
   ShopnoCalWeekend   weekend;
   gdouble            scroll_delta;
+  gdouble            timer_scroll_delta;
 
   gboolean           grab_input;
   GdkSeat           *grab_seat;
@@ -843,6 +845,39 @@ shopno_cal_flyout_week_settings_changed (ShopnoCalFlyout *self)
 
 
 
+/* Whole steps of the wheel, down positive. Smooth scrolling adds up in
+ * delta until it makes a step, and starts over when it turns. */
+static gint
+shopno_cal_flyout_scroll_steps (GdkEventScroll *event,
+                                gdouble        *delta)
+{
+  gdouble dx, dy;
+  gint    steps;
+
+  switch (event->direction)
+    {
+    case GDK_SCROLL_UP:
+      return -1;
+
+    case GDK_SCROLL_DOWN:
+      return 1;
+
+    case GDK_SCROLL_SMOOTH:
+      gdk_event_get_scroll_deltas ((GdkEvent *) event, &dx, &dy);
+      if ((dy > 0) != (*delta > 0))
+        *delta = 0;
+      *delta += dy;
+      steps = (gint) *delta;
+      *delta -= steps;
+      return steps;
+
+    default:
+      return 0;
+    }
+}
+
+
+
 /* Timer */
 
 static void
@@ -949,7 +984,89 @@ shopno_cal_flyout_timer_preset_clicked (GtkWidget       *button,
 {
   guint index = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (button), CELL_INDEX_KEY));
 
+  /* Also stops a running timer of the same length */
   shopno_cal_timer_set_duration (self->timer, timer_presets[index] * 60);
+  g_object_set (self->settings, "timer-minutes", timer_presets[index], NULL);
+}
+
+
+
+/* The length is kept in the settings, so the next session starts with it */
+static void
+shopno_cal_flyout_timer_minutes_changed (ShopnoCalFlyout *self)
+{
+  guint duration = shopno_cal_settings_get_timer_minutes (self->settings) * 60;
+
+  if (shopno_cal_timer_get_duration (self->timer) != duration)
+    shopno_cal_timer_set_duration (self->timer, duration);
+}
+
+
+
+/* A minute more or less, while the timer is idle */
+static void
+shopno_cal_flyout_timer_adjust (ShopnoCalFlyout *self,
+                                gint             minutes)
+{
+  gint length = shopno_cal_settings_get_timer_minutes (self->settings) + minutes;
+
+  if (shopno_cal_timer_get_state (self->timer) != SHOPNO_CAL_TIMER_IDLE)
+    return;
+
+  g_object_set (self->settings, "timer-minutes", (guint) CLAMP (length, 1, SHOPNO_CAL_TIMER_MINUTES_MAX), NULL);
+}
+
+
+
+static gboolean
+shopno_cal_flyout_timer_scroll_event (GtkWidget       *widget,
+                                      GdkEventScroll  *event,
+                                      ShopnoCalFlyout *self)
+{
+  /* Up is longer */
+  shopno_cal_flyout_timer_adjust (self, -shopno_cal_flyout_scroll_steps (event, &self->timer_scroll_delta));
+
+  return GDK_EVENT_STOP;
+}
+
+
+
+static gboolean
+shopno_cal_flyout_timer_key_press_event (GtkWidget       *widget,
+                                         GdkEventKey     *event,
+                                         ShopnoCalFlyout *self)
+{
+  switch (event->keyval)
+    {
+    case GDK_KEY_Up:
+    case GDK_KEY_KP_Up:
+    case GDK_KEY_plus:
+    case GDK_KEY_KP_Add:
+      shopno_cal_flyout_timer_adjust (self, 1);
+      return GDK_EVENT_STOP;
+
+    case GDK_KEY_Down:
+    case GDK_KEY_KP_Down:
+    case GDK_KEY_minus:
+    case GDK_KEY_KP_Subtract:
+      shopno_cal_flyout_timer_adjust (self, -1);
+      return GDK_EVENT_STOP;
+
+    default:
+      return GDK_EVENT_PROPAGATE;
+    }
+}
+
+
+
+static gboolean
+shopno_cal_flyout_timer_focus_changed (GtkWidget       *widget,
+                                       GdkEventFocus   *event,
+                                       ShopnoCalFlyout *self)
+{
+  shopno_cal_flyout_set_class (self->timer_readout, "focused", event->in);
+
+  return GDK_EVENT_PROPAGATE;
 }
 
 
@@ -1335,41 +1452,10 @@ shopno_cal_flyout_scroll_event (GtkWidget       *widget,
                                 GdkEventScroll  *event,
                                 ShopnoCalFlyout *self)
 {
-  gdouble dx, dy;
+  gint steps = shopno_cal_flyout_scroll_steps (event, &self->scroll_delta);
 
-  switch (event->direction)
-    {
-    case GDK_SCROLL_UP:
-      shopno_cal_flyout_navigate (self, -1);
-      break;
-
-    case GDK_SCROLL_DOWN:
-      shopno_cal_flyout_navigate (self, 1);
-      break;
-
-    case GDK_SCROLL_SMOOTH:
-      gdk_event_get_scroll_deltas ((GdkEvent *) event, &dx, &dy);
-
-      /* Start over when the direction changes */
-      if ((dy > 0) != (self->scroll_delta > 0))
-        self->scroll_delta = 0;
-      self->scroll_delta += dy;
-
-      while (self->scroll_delta >= 1.0)
-        {
-          shopno_cal_flyout_navigate (self, 1);
-          self->scroll_delta -= 1.0;
-        }
-      while (self->scroll_delta <= -1.0)
-        {
-          shopno_cal_flyout_navigate (self, -1);
-          self->scroll_delta += 1.0;
-        }
-      break;
-
-    default:
-      break;
-    }
+  if (steps != 0)
+    shopno_cal_flyout_navigate (self, steps);
 
   return GDK_EVENT_STOP;
 }
@@ -1690,6 +1776,10 @@ shopno_cal_flyout_constructed (GObject *object)
                             G_CALLBACK (shopno_cal_flyout_update_timer), self);
   g_signal_connect_swapped (self->timer, "finished",
                             G_CALLBACK (shopno_cal_flyout_timer_finished), self);
+  g_signal_connect_swapped (self->settings, "notify::timer-minutes",
+                            G_CALLBACK (shopno_cal_flyout_timer_minutes_changed), self);
+  if (shopno_cal_timer_get_state (self->timer) == SHOPNO_CAL_TIMER_IDLE)
+    shopno_cal_flyout_timer_minutes_changed (self);
   g_signal_connect_swapped (self->settings, "notify::timer",
                             G_CALLBACK (shopno_cal_flyout_timer_setting_changed), self);
   shopno_cal_flyout_timer_setting_changed (self);
@@ -2159,13 +2249,26 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
 
   self->timer_ring = gtk_drawing_area_new ();
   gtk_widget_set_size_request (self->timer_ring, 48, 48);
-  gtk_widget_set_margin_end (self->timer_ring, 8);
+  gtk_widget_set_margin_end (self->timer_ring, 2);
   g_signal_connect (self->timer_ring, "draw", G_CALLBACK (shopno_cal_flyout_draw_timer_ring), self);
   gtk_box_pack_start (GTK_BOX (row), self->timer_ring, FALSE, FALSE, 0);
 
+  /* The wheel or the arrow keys over the readout change the length */
+  self->timer_length = gtk_event_box_new ();
+  gtk_widget_set_can_focus (self->timer_length, TRUE);
+  gtk_widget_add_events (self->timer_length, GDK_SCROLL_MASK | GDK_SMOOTH_SCROLL_MASK | GDK_BUTTON_PRESS_MASK);
+  g_signal_connect (self->timer_length, "button-press-event", G_CALLBACK (gtk_widget_grab_focus), NULL);
+  gtk_widget_set_tooltip_text (self->timer_length, _("Scroll, or press Up or Down, to change the length"));
+  g_signal_connect (self->timer_length, "scroll-event", G_CALLBACK (shopno_cal_flyout_timer_scroll_event), self);
+  g_signal_connect (self->timer_length, "key-press-event", G_CALLBACK (shopno_cal_flyout_timer_key_press_event), self);
+  g_signal_connect (self->timer_length, "focus-in-event", G_CALLBACK (shopno_cal_flyout_timer_focus_changed), self);
+  g_signal_connect (self->timer_length, "focus-out-event", G_CALLBACK (shopno_cal_flyout_timer_focus_changed), self);
+  gtk_box_pack_start (GTK_BOX (row), self->timer_length, TRUE, TRUE, 0);
+
   self->timer_readout = shopno_cal_flyout_label_new ("shopno-cal-timer-readout");
   gtk_label_set_xalign (GTK_LABEL (self->timer_readout), 0.0);
-  gtk_box_pack_start (GTK_BOX (row), self->timer_readout, TRUE, TRUE, 0);
+  gtk_widget_set_halign (self->timer_readout, GTK_ALIGN_START);
+  gtk_container_add (GTK_CONTAINER (self->timer_length), self->timer_readout);
 
   /* Packed from the right: reset, then start */
   self->timer_reset = shopno_cal_flyout_chip_new (row, _("Reset"), FALSE);

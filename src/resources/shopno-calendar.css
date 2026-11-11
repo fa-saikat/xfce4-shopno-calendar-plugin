@@ -321,9 +321,16 @@ popover.stacked button.shopno-cal-copy-item {
 
 .shopno-cal-timer-readout {
   min-width: 70px;
+  padding: 2px 6px;
+  border-radius: 4px;
   font-size: 16pt;
   font-weight: 500;
   font-feature-settings: "tnum";
+}
+
+/* The readout takes the keyboard to change the length */
+.shopno-cal-timer-readout.focused {
+  box-shadow: inset 0 0 0 2px alpha(@theme_selected_bg_color, 0.6);
 }
 
 button.shopno-cal-chip {
