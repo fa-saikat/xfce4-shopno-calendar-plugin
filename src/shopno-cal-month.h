@@ -43,6 +43,17 @@ gboolean     shopno_cal_month_is_weekend        (ShopnoCalWeekend   weekend,
  * of its days. */
 guint        shopno_cal_month_row_week          (const GDate       *start);
 
+/* The week number of a day, as the grid shows it: the number of the row
+ * it is in when the week starts on week_start */
+guint        shopno_cal_month_day_week          (const GDate       *day,
+                                                 GDateWeekday       week_start);
+
+/* The days from one day to another, both included, that are not in the
+ * weekend. The order of the two days does not matter. */
+guint        shopno_cal_month_working_days      (const GDate       *first,
+                                                 const GDate       *last,
+                                                 ShopnoCalWeekend   weekend);
+
 /* The date of the top-left cell of the month's grid: the month's first
  * day, or the last week start before it */
 void         shopno_cal_month_grid_start        (GDateYear     year,

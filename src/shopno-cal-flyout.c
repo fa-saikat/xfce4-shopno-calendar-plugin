@@ -16,6 +16,7 @@
 
 #include <glib/gi18n-lib.h>
 
+#include "shopno-cal-details.h"
 #include "shopno-cal-flyout.h"
 #include "shopno-cal-month.h"
 
@@ -68,14 +69,22 @@ struct _ShopnoCalFlyout
   GtkWidget         *day_buttons[SHOPNO_CAL_MONTH_WEEKS * 7];
   GtkWidget         *month_buttons[12];
   GtkWidget         *year_buttons[12];
+  GtkWidget         *details;
+  GtkWidget         *details_stack;
+  GtkWidget         *day_title;
+  GtkWidget         *day_facts;
+  GtkWidget         *range_title;
+  GtkWidget         *range_facts;
 
-  /* The view, the month or year it shows, and the selected day. Today is
-   * kept to notice midnight. */
+  /* The view, the month or year it shows, and the selected day, with the
+   * other end of a range when a second day is shift-clicked. Today is kept
+   * to notice midnight. */
   ShopnoCalView      view;
   GDateYear          year;
   GDateMonth         month;
   GDate              grid_start;
   GDate              selected;
+  GDate              range_end;
   GDate              today;
   GDateWeekday       week_start;
   ShopnoCalWeekend   weekend;
@@ -288,18 +297,29 @@ shopno_cal_flyout_day_date (ShopnoCalFlyout *self,
 
 
 
+/* The day the keyboard moves from: the end of the range when there is
+ * one, otherwise the selected day */
+static const GDate *
+shopno_cal_flyout_cursor (ShopnoCalFlyout *self)
+{
+  return g_date_valid (&self->range_end) ? &self->range_end : &self->selected;
+}
+
+
+
 /* Only one day can take the keyboard focus, so Tab moves past the grid in
- * one step and the arrow keys move inside it: the selected day when it is
+ * one step and the arrow keys move inside it: the cursor day when it is
  * in the month shown, otherwise the month's first day */
 static guint
 shopno_cal_flyout_focus_day (ShopnoCalFlyout *self)
 {
-  GDate first;
-  gint  index;
+  const GDate *cursor = shopno_cal_flyout_cursor (self);
+  GDate        first;
+  gint         index;
 
-  if (g_date_get_year (&self->selected) == self->year
-      && g_date_get_month (&self->selected) == self->month)
-    return g_date_days_between (&self->grid_start, &self->selected);
+  if (g_date_get_year (cursor) == self->year
+      && g_date_get_month (cursor) == self->month)
+    return g_date_days_between (&self->grid_start, cursor);
 
   g_date_clear (&first, 1);
   g_date_set_dmy (&first, 1, self->month, self->year);
@@ -315,6 +335,9 @@ shopno_cal_flyout_refresh_days (ShopnoCalFlyout *self)
 {
   GtkWidget *focus;
   GDate      date;
+  GDate      range_first;
+  GDate      range_last;
+  gboolean   range = g_date_valid (&self->range_end);
   gchar     *name;
   gchar      number[4];
   guint      focus_day;
@@ -323,6 +346,13 @@ shopno_cal_flyout_refresh_days (ShopnoCalFlyout *self)
 
   shopno_cal_month_grid_start (self->year, self->month, self->week_start, &self->grid_start);
   focus_day = shopno_cal_flyout_focus_day (self);
+
+  if (range)
+    {
+      range_first = self->selected;
+      range_last = self->range_end;
+      g_date_order (&range_first, &range_last);
+    }
 
   for (i = 0; i < G_N_ELEMENTS (self->day_buttons); i++)
     {
@@ -333,7 +363,13 @@ shopno_cal_flyout_refresh_days (ShopnoCalFlyout *self)
       shopno_cal_flyout_set_cell (self->day_buttons[i], number, name,
                                   g_date_get_month (&date) != self->month,
                                   g_date_compare (&date, &self->today) == 0,
-                                  g_date_compare (&date, &self->selected) == 0);
+                                  g_date_compare (&date, &self->selected) == 0
+                                  || (range && g_date_compare (&date, &self->range_end) == 0));
+      /* The ends have the selection ring; the days between are filled */
+      shopno_cal_flyout_set_class (self->day_buttons[i], "in-range",
+                                   range
+                                   && g_date_compare (&date, &range_first) > 0
+                                   && g_date_compare (&date, &range_last) < 0);
       shopno_cal_flyout_set_class (self->day_buttons[i], "weekend",
                                    shopno_cal_month_is_weekend (self->weekend,
                                                                 g_date_get_weekday (&date)));
@@ -483,6 +519,51 @@ shopno_cal_flyout_can_shift (ShopnoCalFlyout *self,
 
 
 static void
+shopno_cal_flyout_update_details (ShopnoCalFlyout *self)
+{
+  gboolean range = g_date_valid (&self->range_end);
+  GDate    first;
+  GDate    last;
+  gchar   *text;
+
+  text = shopno_cal_details_day_title (&self->selected, &self->today);
+  gtk_label_set_text (GTK_LABEL (self->day_title), text);
+  g_free (text);
+
+  text = shopno_cal_details_day (&self->selected, &self->today, self->week_start);
+  gtk_label_set_text (GTK_LABEL (self->day_facts), text);
+  g_free (text);
+
+  /* Without a range, the hidden range page holds a long sample, so the
+   * stack keeps the height a range needs and the flyout does not jump when
+   * one starts. 15 December 2026 to 25 February 2027 is 72 days. */
+  if (range)
+    {
+      first = self->selected;
+      last = self->range_end;
+    }
+  else
+    {
+      g_date_clear (&first, 1);
+      g_date_set_dmy (&first, 15, G_DATE_DECEMBER, 2026);
+      g_date_clear (&last, 1);
+      g_date_set_dmy (&last, 25, G_DATE_FEBRUARY, 2027);
+    }
+
+  text = shopno_cal_details_range_title (&first, &last);
+  gtk_label_set_text (GTK_LABEL (self->range_title), text);
+  g_free (text);
+
+  text = shopno_cal_details_range (&first, &last, self->weekend);
+  gtk_label_set_text (GTK_LABEL (self->range_facts), text);
+  g_free (text);
+
+  gtk_stack_set_visible_child_name (GTK_STACK (self->details_stack), range ? "range" : "day");
+}
+
+
+
+static void
 shopno_cal_flyout_refresh (ShopnoCalFlyout *self)
 {
   GDate        first;
@@ -531,6 +612,8 @@ shopno_cal_flyout_refresh (ShopnoCalFlyout *self)
 
   gtk_label_set_text (GTK_LABEL (self->title_label), text);
   g_free (text);
+
+  shopno_cal_flyout_update_details (self);
 
   /* The years are as far as it zooms out */
   gtk_widget_set_sensitive (self->title_button, self->view != VIEW_YEARS);
@@ -597,10 +680,9 @@ shopno_cal_flyout_navigate (ShopnoCalFlyout *self,
 
 
 
-/* Selects a day and shows its month */
+/* Keeps a day within the years the calendar goes to */
 static void
-shopno_cal_flyout_select_day (ShopnoCalFlyout *self,
-                              const GDate     *date)
+shopno_cal_flyout_clamp_day (GDate *date)
 {
   GDate first;
   GDate last;
@@ -610,12 +692,61 @@ shopno_cal_flyout_select_day (ShopnoCalFlyout *self,
   g_date_clear (&last, 1);
   g_date_set_dmy (&last, 31, G_DATE_DECEMBER, MAX_YEAR);
 
-  self->selected = *date;
-  g_date_clamp (&self->selected, &first, &last);
+  g_date_clamp (date, &first, &last);
+}
 
-  self->year = g_date_get_year (&self->selected);
-  self->month = g_date_get_month (&self->selected);
+
+
+/* Shows the month of a day in the days view */
+static void
+shopno_cal_flyout_show_day (ShopnoCalFlyout *self,
+                            const GDate     *date)
+{
+  self->year = g_date_get_year (date);
+  self->month = g_date_get_month (date);
   shopno_cal_flyout_set_view (self, VIEW_DAYS);
+}
+
+
+
+/* Selects a day, ending any range, and shows its month */
+static void
+shopno_cal_flyout_select_day (ShopnoCalFlyout *self,
+                              const GDate     *date)
+{
+  self->selected = *date;
+  shopno_cal_flyout_clamp_day (&self->selected);
+  g_date_clear (&self->range_end, 1);
+
+  shopno_cal_flyout_show_day (self, &self->selected);
+}
+
+
+
+/* Makes a day the other end of a range from the selected day, to count
+ * the days between, and shows its month. Without the details there is
+ * nothing to count, so the day is only selected. */
+static void
+shopno_cal_flyout_extend_to (ShopnoCalFlyout *self,
+                             const GDate     *date)
+{
+  GDate end = *date;
+
+  if (!shopno_cal_settings_get_day_details (self->settings))
+    {
+      shopno_cal_flyout_select_day (self, date);
+      return;
+    }
+
+  shopno_cal_flyout_clamp_day (&end);
+
+  /* Back on the selected day, the range is gone */
+  if (g_date_compare (&end, &self->selected) == 0)
+    g_date_clear (&self->range_end, 1);
+  else
+    self->range_end = end;
+
+  shopno_cal_flyout_show_day (self, &end);
 }
 
 
@@ -645,6 +776,9 @@ shopno_cal_flyout_update (ShopnoCalFlyout *self)
 
       if (!g_date_valid (&self->selected) || g_date_compare (&self->selected, &self->today) == 0)
         self->selected = today;
+
+      if (g_date_valid (&self->range_end) && g_date_compare (&self->range_end, &self->selected) == 0)
+        g_date_clear (&self->range_end, 1);
 
       self->today = today;
 
@@ -683,6 +817,24 @@ shopno_cal_flyout_week_settings_changed (ShopnoCalFlyout *self)
 
 
 static void
+shopno_cal_flyout_day_details_changed (ShopnoCalFlyout *self)
+{
+  gboolean day_details = shopno_cal_settings_get_day_details (self->settings);
+
+  gtk_widget_set_visible (self->details, day_details);
+
+  /* A range cannot be seen or counted without the details */
+  if (!day_details && g_date_valid (&self->range_end))
+    {
+      g_date_clear (&self->range_end, 1);
+      if (g_date_valid (&self->today))
+        shopno_cal_flyout_refresh (self);
+    }
+}
+
+
+
+static void
 shopno_cal_flyout_tick (ShopnoCalFlyout *self)
 {
   if (gtk_widget_get_visible (GTK_WIDGET (self)))
@@ -707,11 +859,17 @@ static void
 shopno_cal_flyout_day_clicked (GtkWidget       *button,
                                ShopnoCalFlyout *self)
 {
-  GDate date;
+  GdkModifierType state = 0;
+  GDate           date;
 
   /* A dimmed day goes to its month */
   shopno_cal_flyout_day_date (self, shopno_cal_flyout_cell_index (button), &date);
-  shopno_cal_flyout_select_day (self, &date);
+
+  /* Shift-click counts the days from the selected day */
+  if (gtk_get_current_event_state (&state) && (state & GDK_SHIFT_MASK) != 0)
+    shopno_cal_flyout_extend_to (self, &date);
+  else
+    shopno_cal_flyout_select_day (self, &date);
 }
 
 
@@ -812,11 +970,13 @@ shopno_cal_flyout_scroll_event (GtkWidget       *widget,
 
 
 /* Arrow keys, Page Up and Page Down on a day: move the selection, into the
- * next or previous month when needed */
+ * next or previous month when needed. With Shift, move the end of a range
+ * instead. */
 static gboolean
 shopno_cal_flyout_day_key (ShopnoCalFlyout *self,
                            GtkWidget       *focus,
-                           guint            keyval)
+                           guint            keyval,
+                           gboolean         extend)
 {
   GDate    date;
   gboolean rtl = gtk_widget_get_direction (GTK_WIDGET (self)) == GTK_TEXT_DIR_RTL;
@@ -865,7 +1025,10 @@ shopno_cal_flyout_day_key (ShopnoCalFlyout *self,
       return GDK_EVENT_PROPAGATE;
     }
 
-  shopno_cal_flyout_select_day (self, &date);
+  if (extend)
+    shopno_cal_flyout_extend_to (self, &date);
+  else
+    shopno_cal_flyout_select_day (self, &date);
 
   return GDK_EVENT_STOP;
 }
@@ -987,8 +1150,14 @@ shopno_cal_flyout_key_press_event (GtkWidget   *widget,
   ShopnoCalFlyout *self = SHOPNO_CAL_FLYOUT (widget);
   GtkWidget       *focus = gtk_window_get_focus (GTK_WINDOW (widget));
   gboolean         on_day = focus != NULL && gtk_widget_get_parent (focus) == self->day_grid;
+  GdkModifierType  modifiers = event->state & (GDK_CONTROL_MASK | GDK_MOD1_MASK | GDK_SHIFT_MASK);
 
-  if ((event->state & (GDK_CONTROL_MASK | GDK_MOD1_MASK | GDK_SHIFT_MASK)) != 0)
+  /* Shift with the keys that move between days moves the end of a range */
+  if (modifiers == GDK_SHIFT_MASK && on_day
+      && shopno_cal_flyout_day_key (self, focus, event->keyval, TRUE))
+    return GDK_EVENT_STOP;
+
+  if (modifiers != 0)
     return GTK_WIDGET_CLASS (shopno_cal_flyout_parent_class)->key_press_event (widget, event);
 
   switch (event->keyval)
@@ -1024,7 +1193,7 @@ shopno_cal_flyout_key_press_event (GtkWidget   *widget,
       break;
     }
 
-  if (on_day && shopno_cal_flyout_day_key (self, focus, event->keyval))
+  if (on_day && shopno_cal_flyout_day_key (self, focus, event->keyval, FALSE))
     return GDK_EVENT_STOP;
 
   return GTK_WIDGET_CLASS (shopno_cal_flyout_parent_class)->key_press_event (widget, event);
@@ -1093,6 +1262,9 @@ shopno_cal_flyout_constructed (GObject *object)
   g_signal_connect_swapped (self->settings, "notify::week-numbers",
                             G_CALLBACK (shopno_cal_flyout_week_settings_changed), self);
   shopno_cal_flyout_week_settings_changed (self);
+  g_signal_connect_swapped (self->settings, "notify::day-details",
+                            G_CALLBACK (shopno_cal_flyout_day_details_changed), self);
+  shopno_cal_flyout_day_details_changed (self);
   g_signal_connect_swapped (self->clock, "tick",
                             G_CALLBACK (shopno_cal_flyout_tick), self);
 
@@ -1219,6 +1391,44 @@ shopno_cal_flyout_grid_new (const gchar *style_class)
 
 
 
+static GtkWidget *
+shopno_cal_flyout_details_label_new (const gchar *style_class)
+{
+  GtkWidget *label = shopno_cal_flyout_label_new (style_class);
+
+  gtk_label_set_xalign (GTK_LABEL (label), 0.0);
+  gtk_label_set_line_wrap (GTK_LABEL (label), TRUE);
+  gtk_label_set_max_width_chars (GTK_LABEL (label), 1);
+
+  return label;
+}
+
+
+
+/* A page of the details: a title, a line of facts, and a hint */
+static GtkWidget *
+shopno_cal_flyout_details_page_new (GtkWidget   **title,
+                                    GtkWidget   **facts,
+                                    const gchar  *hint)
+{
+  GtkWidget *page = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+  GtkWidget *label;
+
+  *title = shopno_cal_flyout_details_label_new ("shopno-cal-details-title");
+  gtk_box_pack_start (GTK_BOX (page), *title, FALSE, FALSE, 0);
+
+  *facts = shopno_cal_flyout_details_label_new ("shopno-cal-details-facts");
+  gtk_box_pack_start (GTK_BOX (page), *facts, FALSE, FALSE, 0);
+
+  label = shopno_cal_flyout_details_label_new ("shopno-cal-details-hint");
+  gtk_label_set_text (GTK_LABEL (label), hint);
+  gtk_box_pack_start (GTK_BOX (page), label, FALSE, FALSE, 0);
+
+  return page;
+}
+
+
+
 static void
 shopno_cal_flyout_init (ShopnoCalFlyout *self)
 {
@@ -1229,6 +1439,7 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
   GtkWidget *nav;
   GtkWidget *events;
   GtkWidget *grid;
+  GtkWidget *page;
   guint      i;
 
   self->grab_input = TRUE;
@@ -1237,6 +1448,7 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
   self->weekend = SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY;
   g_date_clear (&self->today, 1);
   g_date_clear (&self->selected, 1);
+  g_date_clear (&self->range_end, 1);
   g_date_clear (&self->grid_start, 1);
 
   shopno_cal_flyout_load_css (gtk_widget_get_screen (GTK_WIDGET (self)));
@@ -1380,6 +1592,26 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
                         G_CALLBACK (shopno_cal_flyout_year_clicked), self);
       gtk_grid_attach (GTK_GRID (grid), self->year_buttons[i], i % 4, i / 4, 1, 1);
     }
+
+  /* Details: a section under the calendar with the selected day, or the
+   * days between two, over a line of facts and a hint. The two are pages
+   * of a stack as tall as the taller one. Long lines wrap to the width of
+   * the calendar instead of widening the flyout. */
+  self->details = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+  gtk_style_context_add_class (gtk_widget_get_style_context (self->details), "shopno-cal-details");
+  gtk_box_pack_start (GTK_BOX (self->frame), self->details, FALSE, FALSE, 0);
+
+  self->details_stack = gtk_stack_new ();
+  gtk_stack_set_homogeneous (GTK_STACK (self->details_stack), TRUE);
+  gtk_box_pack_start (GTK_BOX (self->details), self->details_stack, FALSE, FALSE, 0);
+
+  page = shopno_cal_flyout_details_page_new (&self->day_title, &self->day_facts,
+                                             _("Shift-click another date to count the days between."));
+  gtk_stack_add_named (GTK_STACK (self->details_stack), page, "day");
+
+  page = shopno_cal_flyout_details_page_new (&self->range_title, &self->range_facts,
+                                             _("Click any date to clear."));
+  gtk_stack_add_named (GTK_STACK (self->details_stack), page, "range");
 
   gtk_widget_show_all (self->frame);
 }

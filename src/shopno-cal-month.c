@@ -133,6 +133,60 @@ shopno_cal_month_row_week (const GDate *start)
 
 
 
+guint
+shopno_cal_month_day_week (const GDate  *day,
+                           GDateWeekday  week_start)
+{
+  GDate start = *day;
+
+  g_return_val_if_fail (g_date_valid (day), 0);
+  g_return_val_if_fail (g_date_valid_weekday (week_start), 0);
+
+  g_date_subtract_days (&start, (g_date_get_weekday (day) - week_start + 7) % 7);
+
+  return shopno_cal_month_row_week (&start);
+}
+
+
+
+guint
+shopno_cal_month_working_days (const GDate      *first,
+                               const GDate      *last,
+                               ShopnoCalWeekend  weekend)
+{
+  GDateWeekday weekday;
+  guint        days;
+  guint        per_week = 0;
+  guint        count;
+  guint        i;
+
+  g_return_val_if_fail (g_date_valid (first) && g_date_valid (last), 0);
+
+  if (g_date_compare (first, last) > 0)
+    {
+      const GDate *swap = first;
+      first = last;
+      last = swap;
+    }
+
+  days = g_date_days_between (first, last) + 1;
+
+  /* Any seven days in a row hold each weekday once; count the whole weeks
+   * at once and walk only the days left over */
+  for (weekday = G_DATE_MONDAY; weekday <= G_DATE_SUNDAY; weekday++)
+    per_week += !shopno_cal_month_is_weekend (weekend, weekday);
+
+  count = days / 7 * per_week;
+  weekday = g_date_get_weekday (first);
+
+  for (i = 0; i < days % 7; i++)
+    count += !shopno_cal_month_is_weekend (weekend, (weekday - 1 + i) % 7 + 1);
+
+  return count;
+}
+
+
+
 gchar *
 shopno_cal_month_weekday_name (GDateWeekday weekday,
                                gboolean     abbreviated)

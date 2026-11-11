@@ -400,6 +400,14 @@ shopno_cal_dialog_new (GtkWindow         *parent,
   g_object_bind_property (settings, "week-numbers", check, "active", BINDING_FLAGS);
   gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
 
+  check = gtk_check_button_new_with_mnemonic (_("Show day de_tails"));
+  gtk_widget_set_tooltip_text (check, _("The selected day's week, its day of the year and how far away it "
+                                        "is, under the calendar. Shift-click a second day to count the "
+                                        "days between."));
+  gtk_widget_set_margin_start (check, 12);
+  g_object_bind_property (settings, "day-details", check, "active", BINDING_FLAGS);
+  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
+
   gtk_widget_show_all (grid);
 
   return dialog;
