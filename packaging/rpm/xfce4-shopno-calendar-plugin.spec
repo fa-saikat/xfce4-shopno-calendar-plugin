@@ -19,6 +19,7 @@ BuildRequires:  pkgconfig(libxfce4util-1.0)
 BuildRequires:  pkgconfig(libxfconf-0)
 
 Requires:       xfce4-panel
+Suggests:       picom
 
 %description
 Shopno Calendar is a panel clock for Xfce with a calendar flyout, in the
@@ -44,7 +45,7 @@ mouse, wheel and keyboard. It takes every color from the GTK theme.
 
 %files
 %license COPYING
-%doc README.md
+%doc README.md extras/picom/shopno-calendar.conf
 %{_libdir}/xfce4/panel/plugins/libshopno-calendar.so
 %{_datadir}/xfce4/panel/plugins/shopno-calendar.desktop
 %{_datadir}/icons/hicolor/scalable/apps/shopno-calendar.svg

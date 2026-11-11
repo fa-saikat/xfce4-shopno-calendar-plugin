@@ -6,7 +6,7 @@
  * Users can override any rule from ~/.config/gtk-3.0/gtk.css.
  *
  * The flyout does not draw its own shadow: the window manager's
- * compositor draws it around the window.
+ * compositor (or picom, with blur on) draws it around the window.
  */
 
 window.shopno-cal-flyout,
@@ -25,6 +25,10 @@ window.shopno-cal-flyout.background {
 
 window.composited .shopno-cal-frame {
   background-color: alpha(@theme_bg_color, 0.96);
+}
+
+window.composited.blur .shopno-cal-frame {
+  background-color: alpha(@theme_bg_color, 0.78);
 }
 
 /* Without a compositor there is no transparency, so draw a plain box */

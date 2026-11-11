@@ -36,6 +36,10 @@
 
 #define CELL_INDEX_KEY "shopno-cal-cell-index"
 
+/* Window roles, matched by the picom rules shipped in extras/picom */
+#define ROLE_PLAIN "shopno-calendar"
+#define ROLE_BLUR  "shopno-calendar-blur"
+
 /* The timer's presets, in minutes */
 static const guint timer_presets[] = { 1, 5, 15, 25 };
 
@@ -177,6 +181,23 @@ shopno_cal_flyout_update_visual (ShopnoCalFlyout *self)
     gtk_style_context_add_class (context, "composited");
   else
     gtk_style_context_remove_class (context, "composited");
+}
+
+
+
+static void
+shopno_cal_flyout_update_blur (ShopnoCalFlyout *self)
+{
+  GtkStyleContext *context = gtk_widget_get_style_context (GTK_WIDGET (self));
+  gboolean         blur = shopno_cal_settings_get_enable_blur (self->settings);
+
+  /* With blur on, picom draws the blur, shadow and rounded corners */
+  gtk_window_set_role (GTK_WINDOW (self), blur ? ROLE_BLUR : ROLE_PLAIN);
+
+  if (blur)
+    gtk_style_context_add_class (context, "blur");
+  else
+    gtk_style_context_remove_class (context, "blur");
 }
 
 
@@ -1756,6 +1777,9 @@ shopno_cal_flyout_constructed (GObject *object)
 
   G_OBJECT_CLASS (shopno_cal_flyout_parent_class)->constructed (object);
 
+  g_signal_connect_swapped (self->settings, "notify::enable-blur",
+                            G_CALLBACK (shopno_cal_flyout_update_blur), self);
+  shopno_cal_flyout_update_blur (self);
   g_signal_connect_swapped (self->settings, "notify::use-24h",
                             G_CALLBACK (shopno_cal_flyout_tick), self);
   g_signal_connect_swapped (self->settings, "notify::week-start",

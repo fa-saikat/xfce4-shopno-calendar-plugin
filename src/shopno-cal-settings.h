@@ -80,6 +80,7 @@ gboolean           shopno_cal_settings_get_copy_button   (ShopnoCalSettings *set
 const gchar       *shopno_cal_settings_get_time_settings_command (ShopnoCalSettings *settings);
 gboolean           shopno_cal_settings_get_timer         (ShopnoCalSettings *settings);
 guint              shopno_cal_settings_get_timer_minutes (ShopnoCalSettings *settings);
+gboolean           shopno_cal_settings_get_enable_blur   (ShopnoCalSettings *settings);
 
 G_END_DECLS
 

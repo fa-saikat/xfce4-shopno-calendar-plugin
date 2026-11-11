@@ -63,7 +63,9 @@ goes back to today. Every day is named for screen readers. The flyout
 opens next to the clock on any panel edge, and closes on Escape, a click
 outside or another click on the clock. It takes every color from your
 GTK theme, light or dark; rules in `~/.config/gtk-3.0/gtk.css` can
-override its style.
+override its style. With [picom](https://github.com/yshui/picom), the
+background behind it can be blurred, as in Shopno Menu and Shopno Quick
+Settings (see [Background blur](#background-blur)).
 
 ## Installing
 
@@ -108,6 +110,22 @@ xfce4-panel -r
 ```
 
 Then add **Shopno Calendar** to the panel from *Panel Preferences → Items*.
+
+## Background blur
+
+Blur is drawn by the compositor, so it needs [picom](https://github.com/yshui/picom)
+instead of the built-in Xfce compositor:
+
+1. Turn off the Xfce compositor in **Settings > Window Manager Tweaks >
+   Compositor**, and run picom with a blur method such as
+   `blur-method = "dual_kawase";`.
+2. Add the rules from [`extras/picom/shopno-calendar.conf`](extras/picom/shopno-calendar.conf)
+   to your picom configuration.
+3. Right-click the clock, choose **Properties**, and turn on **Blur the
+   background behind the calendar**.
+
+With blur off, the calendar draws its own rounded corners and works with
+any compositor, or none.
 
 ## Credits
 

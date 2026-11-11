@@ -24,6 +24,7 @@
 #define BINDING_FLAGS (G_BINDING_BIDIRECTIONAL | G_BINDING_SYNC_CREATE)
 
 #define FORMAT_CODES_URL "https://docs.gtk.org/glib/method.DateTime.format.html"
+#define BLUR_GUIDE_URL   "https://github.com/fa-saikat/xfce4-shopno-calendar-plugin#background-blur"
 
 /* In the order of ShopnoCalLayout */
 static const gchar *layouts[] =
@@ -442,6 +443,24 @@ shopno_cal_dialog_new (GtkWindow         *parent,
   gtk_label_set_mnemonic_widget (GTK_LABEL (label), entry);
   g_object_bind_property (settings, "time-settings-command", entry, "text", BINDING_FLAGS);
   gtk_grid_attach (GTK_GRID (grid), entry, 1, row++, 1, 1);
+
+  check = gtk_check_button_new_with_mnemonic (_("_Blur the background behind the calendar"));
+  gtk_widget_set_margin_start (check, 12);
+  g_object_bind_property (settings, "enable-blur", check, "active", BINDING_FLAGS);
+  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
+
+  text = g_strdup_printf ("<small>%s\n<a href=\"%s\">%s</a></small>",
+                          _("Blur needs the picom compositor with the Shopno Calendar rules."),
+                          BLUR_GUIDE_URL, _("How to set it up"));
+  label = gtk_label_new (NULL);
+  gtk_label_set_markup (GTK_LABEL (label), text);
+  gtk_label_set_xalign (GTK_LABEL (label), 0.0);
+  gtk_label_set_line_wrap (GTK_LABEL (label), TRUE);
+  gtk_label_set_max_width_chars (GTK_LABEL (label), 50);
+  gtk_widget_set_margin_start (label, 36);
+  gtk_style_context_add_class (gtk_widget_get_style_context (label), "dim-label");
+  gtk_grid_attach (GTK_GRID (grid), label, 0, row++, 2, 1);
+  g_free (text);
 
   gtk_widget_show_all (grid);
 

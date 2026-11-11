@@ -35,6 +35,7 @@ enum
   PROP_TIME_SETTINGS_COMMAND,
   PROP_TIMER,
   PROP_TIMER_MINUTES,
+  PROP_ENABLE_BLUR,
   N_PROPERTIES
 };
 
@@ -55,6 +56,7 @@ struct _ShopnoCalSettings
   gchar   *time_settings_command;
   gboolean timer;
   guint    timer_minutes;
+  gboolean enable_blur;
 };
 
 static GParamSpec *properties[N_PROPERTIES];
@@ -138,6 +140,10 @@ shopno_cal_settings_get_property (GObject    *object,
 
     case PROP_TIMER_MINUTES:
       g_value_set_uint (value, self->timer_minutes);
+      break;
+
+    case PROP_ENABLE_BLUR:
+      g_value_set_boolean (value, self->enable_blur);
       break;
 
     default:
@@ -268,6 +274,14 @@ shopno_cal_settings_set_property (GObject      *object,
         }
       break;
 
+    case PROP_ENABLE_BLUR:
+      if (self->enable_blur != g_value_get_boolean (value))
+        {
+          self->enable_blur = g_value_get_boolean (value);
+          g_object_notify_by_pspec (object, pspec);
+        }
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -365,6 +379,11 @@ shopno_cal_settings_class_init (ShopnoCalSettingsClass *klass)
                        1, SHOPNO_CAL_TIMER_MINUTES_MAX, 5,
                        G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
 
+  properties[PROP_ENABLE_BLUR] =
+    g_param_spec_boolean ("enable-blur", NULL, NULL,
+                          FALSE,
+                          G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
   g_object_class_install_properties (object_class, N_PROPERTIES, properties);
 }
 
@@ -386,6 +405,7 @@ shopno_cal_settings_init (ShopnoCalSettings *self)
   self->time_settings_command = g_strdup ("");
   self->timer = TRUE;
   self->timer_minutes = 5;
+  self->enable_blur = FALSE;
 }
 
 
@@ -528,4 +548,14 @@ shopno_cal_settings_get_timer_minutes (ShopnoCalSettings *settings)
   g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), 5);
 
   return settings->timer_minutes;
+}
+
+
+
+gboolean
+shopno_cal_settings_get_enable_blur (ShopnoCalSettings *settings)
+{
+  g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), FALSE);
+
+  return settings->enable_blur;
 }
