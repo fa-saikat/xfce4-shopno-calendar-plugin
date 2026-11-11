@@ -20,9 +20,11 @@
 #include <xfconf/xfconf.h>
 
 #include "shopno-cal-clock.h"
+#include "shopno-cal-details.h"
 #include "shopno-cal-dialog.h"
 #include "shopno-cal-flyout.h"
 #include "shopno-cal-format.h"
+#include "shopno-cal-month.h"
 #include "shopno-cal-settings.h"
 
 /* Shown when a custom format gives nothing */
@@ -52,6 +54,9 @@ struct _ShopnoCalPlugin
   GtkWidget         *button;
   GtkWidget         *label;
   GtkWidget         *flyout;
+
+  /* The day the tooltip shows, to notice midnight */
+  GDate              tooltip_day;
 };
 
 /* Resident: the settings and clock types are static GTypes, which do
@@ -99,6 +104,7 @@ shopno_cal_plugin_load_settings (ShopnoCalPlugin *self)
   shopno_cal_plugin_bind (self, "weekend", G_TYPE_UINT);
   shopno_cal_plugin_bind (self, "week-numbers", G_TYPE_BOOLEAN);
   shopno_cal_plugin_bind (self, "day-details", G_TYPE_BOOLEAN);
+  shopno_cal_plugin_bind (self, "show-tooltip", G_TYPE_BOOLEAN);
 }
 
 
@@ -174,6 +180,69 @@ shopno_cal_plugin_update_orientation (ShopnoCalPlugin *self)
                          mode == XFCE_PANEL_PLUGIN_MODE_HORIZONTAL ? GTK_JUSTIFY_RIGHT : GTK_JUSTIFY_CENTER);
 
   shopno_cal_plugin_update_format (self);
+}
+
+
+
+/*
+ * Tooltip
+ */
+
+static void
+shopno_cal_plugin_today (ShopnoCalPlugin *self,
+                         GDate           *today)
+{
+  GDateTime *now = shopno_cal_clock_get_now (self->clock);
+
+  g_date_clear (today, 1);
+  g_date_set_dmy (today, g_date_time_get_day_of_month (now),
+                  g_date_time_get_month (now), g_date_time_get_year (now));
+  g_date_time_unref (now);
+}
+
+
+
+/* Built when the pointer rests on the clock, so it is never out of date.
+ * Not over the open flyout, which shows all of it already. */
+static gboolean
+shopno_cal_plugin_query_tooltip (GtkWidget       *button,
+                                 gint             x,
+                                 gint             y,
+                                 gboolean         keyboard_mode,
+                                 GtkTooltip      *tooltip,
+                                 ShopnoCalPlugin *self)
+{
+  GDate  today;
+  gchar *markup;
+
+  if (!shopno_cal_settings_get_show_tooltip (self->settings)
+      || (self->flyout != NULL && gtk_widget_get_visible (self->flyout)))
+    return FALSE;
+
+  shopno_cal_plugin_today (self, &today);
+  markup = shopno_cal_details_tooltip (&today,
+                                       shopno_cal_month_week_start (shopno_cal_settings_get_week_start (self->settings)));
+  gtk_tooltip_set_markup (tooltip, markup);
+  g_free (markup);
+
+  return TRUE;
+}
+
+
+
+/* A tooltip shown at midnight moves on to the new day */
+static void
+shopno_cal_plugin_update_tooltip (ShopnoCalPlugin *self)
+{
+  GDate today;
+
+  shopno_cal_plugin_today (self, &today);
+
+  if (!g_date_valid (&self->tooltip_day) || g_date_compare (&today, &self->tooltip_day) != 0)
+    {
+      self->tooltip_day = today;
+      gtk_widget_trigger_tooltip_query (self->button);
+    }
 }
 
 
@@ -342,6 +411,8 @@ shopno_cal_plugin_construct (XfcePanelPlugin *plugin)
                             G_CALLBACK (shopno_cal_plugin_update_format), self);
   g_signal_connect_swapped (self->clock, "tick",
                             G_CALLBACK (shopno_cal_plugin_update_label), self);
+  g_signal_connect_swapped (self->clock, "tick",
+                            G_CALLBACK (shopno_cal_plugin_update_tooltip), self);
 
   shopno_cal_plugin_update_orientation (self);
 }
@@ -464,6 +535,10 @@ shopno_cal_plugin_init (ShopnoCalPlugin *self)
   g_signal_connect (self->button, "button-press-event",
                     G_CALLBACK (shopno_cal_plugin_button_press_event), self);
   xfce_panel_plugin_add_action_widget (XFCE_PANEL_PLUGIN (self), self->button);
+  gtk_widget_set_has_tooltip (self->button, TRUE);
+  g_signal_connect (self->button, "query-tooltip",
+                    G_CALLBACK (shopno_cal_plugin_query_tooltip), self);
+  g_date_clear (&self->tooltip_day, 1);
   gtk_container_add (GTK_CONTAINER (self), self->button);
 
   self->label = gtk_label_new (NULL);

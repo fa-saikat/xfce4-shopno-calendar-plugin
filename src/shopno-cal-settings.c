@@ -30,6 +30,7 @@ enum
   PROP_WEEKEND,
   PROP_WEEK_NUMBERS,
   PROP_DAY_DETAILS,
+  PROP_SHOW_TOOLTIP,
   N_PROPERTIES
 };
 
@@ -45,6 +46,7 @@ struct _ShopnoCalSettings
   guint    weekend;
   gboolean week_numbers;
   gboolean day_details;
+  gboolean show_tooltip;
 };
 
 static GParamSpec *properties[N_PROPERTIES];
@@ -108,6 +110,10 @@ shopno_cal_settings_get_property (GObject    *object,
 
     case PROP_DAY_DETAILS:
       g_value_set_boolean (value, self->day_details);
+      break;
+
+    case PROP_SHOW_TOOLTIP:
+      g_value_set_boolean (value, self->show_tooltip);
       break;
 
     default:
@@ -197,6 +203,14 @@ shopno_cal_settings_set_property (GObject      *object,
         }
       break;
 
+    case PROP_SHOW_TOOLTIP:
+      if (self->show_tooltip != g_value_get_boolean (value))
+        {
+          self->show_tooltip = g_value_get_boolean (value);
+          g_object_notify_by_pspec (object, pspec);
+        }
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -267,6 +281,11 @@ shopno_cal_settings_class_init (ShopnoCalSettingsClass *klass)
                           TRUE,
                           G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
 
+  properties[PROP_SHOW_TOOLTIP] =
+    g_param_spec_boolean ("show-tooltip", NULL, NULL,
+                          TRUE,
+                          G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
   g_object_class_install_properties (object_class, N_PROPERTIES, properties);
 }
 
@@ -283,6 +302,7 @@ shopno_cal_settings_init (ShopnoCalSettings *self)
   self->weekend = SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY;
   self->week_numbers = FALSE;
   self->day_details = TRUE;
+  self->show_tooltip = TRUE;
 }
 
 
@@ -371,4 +391,14 @@ shopno_cal_settings_get_day_details (ShopnoCalSettings *settings)
   g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), TRUE);
 
   return settings->day_details;
+}
+
+
+
+gboolean
+shopno_cal_settings_get_show_tooltip (ShopnoCalSettings *settings)
+{
+  g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), TRUE);
+
+  return settings->show_tooltip;
 }

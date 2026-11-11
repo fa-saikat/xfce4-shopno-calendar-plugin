@@ -18,6 +18,8 @@
 
 #include <locale.h>
 
+#include <pango/pango.h>
+
 #include "shopno-cal-details.h"
 
 
@@ -156,6 +158,31 @@ test_range (void)
 
 
 
+static void
+test_tooltip (void)
+{
+  GDate  today = date (2026, G_DATE_NOVEMBER, 10);
+  gchar *markup;
+
+  markup = shopno_cal_details_tooltip (&today, G_DATE_MONDAY);
+  g_assert_cmpstr (markup, ==,
+                   "<b>Tuesday, 10 November 2026</b>\n"
+                   "<span alpha=\"60%\">Week 46 · Day 314 of 365</span>");
+  g_assert_true (pango_parse_markup (markup, -1, 0, NULL, NULL, NULL, NULL));
+  g_free (markup);
+
+  /* Sunday 8 November is in the row numbered 46 when the week starts on
+   * Sunday, as in the flyout */
+  today = date (2026, G_DATE_NOVEMBER, 8);
+  markup = shopno_cal_details_tooltip (&today, G_DATE_SUNDAY);
+  g_assert_cmpstr (markup, ==,
+                   "<b>Sunday, 8 November 2026</b>\n"
+                   "<span alpha=\"60%\">Week 46 · Day 312 of 365</span>");
+  g_free (markup);
+}
+
+
+
 int
 main (int    argc,
       char **argv)
@@ -166,6 +193,7 @@ main (int    argc,
   g_test_add_func ("/details/day", test_day);
   g_test_add_func ("/details/range-title", test_range_title);
   g_test_add_func ("/details/range", test_range);
+  g_test_add_func ("/details/tooltip", test_tooltip);
 
   return g_test_run ();
 }

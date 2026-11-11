@@ -364,6 +364,12 @@ shopno_cal_dialog_new (GtkWindow         *parent,
   shopno_cal_dialog_bind_custom (settings, check, FALSE);
   gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
 
+  check = gtk_check_button_new_with_mnemonic (_("Show the full date on _hover"));
+  gtk_widget_set_tooltip_text (check, _("The full date and week number, without opening the calendar"));
+  gtk_widget_set_margin_start (check, 12);
+  g_object_bind_property (settings, "show-tooltip", check, "active", BINDING_FLAGS);
+  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
+
   /* Preview */
   label = shopno_cal_dialog_heading_new (_("Preview"));
   gtk_widget_set_margin_top (label, 12);
