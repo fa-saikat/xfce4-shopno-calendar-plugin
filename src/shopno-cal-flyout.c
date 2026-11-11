@@ -1094,7 +1094,7 @@ shopno_cal_flyout_timer_reset_clicked (ShopnoCalFlyout *self)
 static void
 shopno_cal_flyout_timer_finished (ShopnoCalFlyout *self)
 {
-  shopno_cal_timer_notify (NULL, shopno_cal_timer_get_duration (self->timer));
+  shopno_cal_timer_notify (self->timer, NULL);
 }
 
 

@@ -20,6 +20,11 @@
 
 #define DEFAULT_DURATION (5 * 60)
 
+#define NOTIFICATIONS_NAME      "org.freedesktop.Notifications"
+#define NOTIFICATIONS_PATH      "/org/freedesktop/Notifications"
+#define NOTIFICATIONS_INTERFACE "org.freedesktop.Notifications"
+#define RESTART_ACTION          "restart"
+
 enum
 {
   CHANGED,
@@ -40,6 +45,12 @@ struct _ShopnoCalTimer
   gint64              end;
 
   guint               timeout_id;
+
+  /* The notification shown, if any, and the bus it is on */
+  GDBusConnection    *bus;
+  guint               action_id;
+  guint               closed_id;
+  guint               notification;
 };
 
 static guint signals[N_SIGNALS];
@@ -106,11 +117,40 @@ shopno_cal_timer_timeout (gpointer data)
 
 
 static void
+shopno_cal_timer_close_notification (ShopnoCalTimer *self)
+{
+  if (self->notification == 0)
+    return;
+
+  g_dbus_connection_call (self->bus, NOTIFICATIONS_NAME, NOTIFICATIONS_PATH, NOTIFICATIONS_INTERFACE,
+                          "CloseNotification", g_variant_new ("(u)", self->notification),
+                          NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
+  self->notification = 0;
+}
+
+
+
+static void
+shopno_cal_timer_unwatch (ShopnoCalTimer *self)
+{
+  if (self->bus == NULL)
+    return;
+
+  g_dbus_connection_signal_unsubscribe (self->bus, self->action_id);
+  g_dbus_connection_signal_unsubscribe (self->bus, self->closed_id);
+  g_clear_object (&self->bus);
+  self->notification = 0;
+}
+
+
+
+static void
 shopno_cal_timer_finalize (GObject *object)
 {
   ShopnoCalTimer *self = SHOPNO_CAL_TIMER (object);
 
   g_clear_handle_id (&self->timeout_id, g_source_remove);
+  shopno_cal_timer_unwatch (self);
 
   G_OBJECT_CLASS (shopno_cal_timer_parent_class)->finalize (object);
 }
@@ -214,6 +254,8 @@ shopno_cal_timer_start (ShopnoCalTimer *timer)
   if (timer->state == SHOPNO_CAL_TIMER_RUNNING)
     return;
 
+  shopno_cal_timer_close_notification (timer);
+
   timer->end = g_get_monotonic_time () + timer->remaining;
   timer->state = SHOPNO_CAL_TIMER_RUNNING;
   shopno_cal_timer_schedule (timer);
@@ -276,45 +318,126 @@ shopno_cal_timer_format (guint seconds)
 
 
 static void
+shopno_cal_timer_action_invoked (GDBusConnection *connection,
+                                 const gchar     *sender,
+                                 const gchar     *path,
+                                 const gchar     *interface,
+                                 const gchar     *signal,
+                                 GVariant        *parameters,
+                                 gpointer         data)
+{
+  ShopnoCalTimer *self = SHOPNO_CAL_TIMER (data);
+  const gchar    *action;
+  guint           id;
+
+  g_variant_get (parameters, "(u&s)", &id, &action);
+  if (id == 0 || id != self->notification || g_strcmp0 (action, RESTART_ACTION) != 0)
+    return;
+
+  /* The server closes the notification itself */
+  self->notification = 0;
+  if (self->state == SHOPNO_CAL_TIMER_IDLE)
+    shopno_cal_timer_start (self);
+}
+
+
+
+static void
+shopno_cal_timer_notification_closed (GDBusConnection *connection,
+                                      const gchar     *sender,
+                                      const gchar     *path,
+                                      const gchar     *interface,
+                                      const gchar     *signal,
+                                      GVariant        *parameters,
+                                      gpointer         data)
+{
+  ShopnoCalTimer *self = SHOPNO_CAL_TIMER (data);
+  guint           id;
+
+  g_variant_get (parameters, "(uu)", &id, NULL);
+  if (id == self->notification)
+    self->notification = 0;
+}
+
+
+
+static void
+shopno_cal_timer_watch (ShopnoCalTimer  *self,
+                        GDBusConnection *connection)
+{
+  if (self->bus == connection)
+    return;
+
+  shopno_cal_timer_unwatch (self);
+  self->bus = g_object_ref (connection);
+  self->action_id =
+    g_dbus_connection_signal_subscribe (connection, NOTIFICATIONS_NAME, NOTIFICATIONS_INTERFACE,
+                                        "ActionInvoked", NOTIFICATIONS_PATH, NULL,
+                                        G_DBUS_SIGNAL_FLAGS_NONE,
+                                        shopno_cal_timer_action_invoked, self, NULL);
+  self->closed_id =
+    g_dbus_connection_signal_subscribe (connection, NOTIFICATIONS_NAME, NOTIFICATIONS_INTERFACE,
+                                        "NotificationClosed", NOTIFICATIONS_PATH, NULL,
+                                        G_DBUS_SIGNAL_FLAGS_NONE,
+                                        shopno_cal_timer_notification_closed, self, NULL);
+}
+
+
+
+/* Holds a reference to the timer, so it outlives the call */
+static void
 shopno_cal_timer_notified (GObject      *source,
                            GAsyncResult *result,
                            gpointer      data)
 {
-  GVariant *reply;
-  GError   *error = NULL;
+  ShopnoCalTimer *self = SHOPNO_CAL_TIMER (data);
+  GVariant       *reply;
+  GError         *error = NULL;
 
   reply = g_dbus_connection_call_finish (G_DBUS_CONNECTION (source), result, &error);
   if (reply == NULL)
     {
       g_warning ("Failed to show the timer notification: %s", error->message);
       g_error_free (error);
-      return;
+    }
+  else
+    {
+      /* Started again before the server answered: the notification is
+       * already out of date */
+      g_variant_get (reply, "(u)", &self->notification);
+      if (self->state != SHOPNO_CAL_TIMER_IDLE)
+        shopno_cal_timer_close_notification (self);
+      g_variant_unref (reply);
     }
 
-  g_variant_unref (reply);
+  g_object_unref (self);
 }
 
 
 
 static void
-shopno_cal_timer_send (GDBusConnection *connection,
-                       guint            seconds)
+shopno_cal_timer_send (ShopnoCalTimer  *self,
+                       GDBusConnection *connection)
 {
-  GVariantBuilder hints;
-  gchar          *body = shopno_cal_timer_describe (seconds);
+  GVariantBuilder  hints;
+  const gchar     *actions[] = { RESTART_ACTION, _("Restart"), NULL };
+  gchar           *body = shopno_cal_timer_describe (shopno_cal_timer_get_duration (self));
+
+  shopno_cal_timer_watch (self, connection);
 
   g_variant_builder_init (&hints, G_VARIANT_TYPE ("a{sv}"));
   g_variant_builder_add (&hints, "{sv}", "urgency", g_variant_new_byte (1));
   /* From the freedesktop sound theme, for servers that play sounds */
   g_variant_builder_add (&hints, "{sv}", "sound-name", g_variant_new_string ("alarm-clock-elapsed"));
 
-  g_dbus_connection_call (connection, "org.freedesktop.Notifications", "/org/freedesktop/Notifications",
-                          "org.freedesktop.Notifications", "Notify",
-                          g_variant_new ("(susssasa{sv}i)",
-                                         _("Shopno Calendar"), 0, "shopno-calendar",
-                                         _("Timer finished"), body, NULL, &hints, -1),
+  /* Replaces the last one, if it is still shown */
+  g_dbus_connection_call (connection, NOTIFICATIONS_NAME, NOTIFICATIONS_PATH, NOTIFICATIONS_INTERFACE,
+                          "Notify",
+                          g_variant_new ("(susss^asa{sv}i)",
+                                         _("Shopno Calendar"), self->notification, "shopno-calendar",
+                                         _("Timer finished"), body, actions, &hints, -1),
                           G_VARIANT_TYPE ("(u)"), G_DBUS_CALL_FLAGS_NONE, -1, NULL,
-                          shopno_cal_timer_notified, NULL);
+                          shopno_cal_timer_notified, g_object_ref (self));
   g_free (body);
 }
 
@@ -325,6 +448,7 @@ shopno_cal_timer_got_session (GObject      *source,
                               GAsyncResult *result,
                               gpointer      data)
 {
+  ShopnoCalTimer  *self = SHOPNO_CAL_TIMER (data);
   GDBusConnection *connection;
   GError          *error = NULL;
 
@@ -333,23 +457,27 @@ shopno_cal_timer_got_session (GObject      *source,
     {
       g_warning ("Failed to show the timer notification: %s", error->message);
       g_error_free (error);
-      return;
+    }
+  else
+    {
+      shopno_cal_timer_send (self, connection);
+      g_object_unref (connection);
     }
 
-  shopno_cal_timer_send (connection, GPOINTER_TO_UINT (data));
-  g_object_unref (connection);
+  g_object_unref (self);
 }
 
 
 
 void
-shopno_cal_timer_notify (GDBusConnection *connection,
-                         guint            seconds)
+shopno_cal_timer_notify (ShopnoCalTimer  *timer,
+                         GDBusConnection *connection)
 {
+  g_return_if_fail (SHOPNO_IS_CAL_TIMER (timer));
   g_return_if_fail (connection == NULL || G_IS_DBUS_CONNECTION (connection));
 
   if (connection != NULL)
-    shopno_cal_timer_send (connection, seconds);
+    shopno_cal_timer_send (timer, connection);
   else
-    g_bus_get (G_BUS_TYPE_SESSION, NULL, shopno_cal_timer_got_session, GUINT_TO_POINTER (seconds));
+    g_bus_get (G_BUS_TYPE_SESSION, NULL, shopno_cal_timer_got_session, g_object_ref (timer));
 }
