@@ -73,7 +73,7 @@ struct _ShopnoCalFlyout
 
   GtkWidget         *frame;
   GtkWidget         *time_label;
-  GtkWidget         *seconds_label;
+  GtkWidget         *period_label;
   GtkWidget         *date_button;
   GtkWidget         *title_button;
   GtkWidget         *title_label;
@@ -245,14 +245,14 @@ shopno_cal_flyout_update_header (ShopnoCalFlyout *self,
   gboolean  use_24h = shopno_cal_settings_get_use_24h (self->settings);
   gchar    *text;
 
-  text = g_date_time_format (now, use_24h ? "%H:%M" : "%-l:%M");
+  text = g_date_time_format (now, use_24h ? "%H:%M:%S" : "%-l:%M:%S");
   gtk_label_set_text (GTK_LABEL (self->time_label), text);
   g_free (text);
 
   /* %p is empty in locales without AM and PM */
-  text = g_date_time_format (now, use_24h ? ":%S" : ":%S %p");
-  g_strchomp (text);
-  gtk_label_set_text (GTK_LABEL (self->seconds_label), text);
+  text = use_24h ? g_strdup ("") : g_date_time_format (now, "%p");
+  gtk_label_set_text (GTK_LABEL (self->period_label), text);
+  gtk_widget_set_visible (self->period_label, *text != '\0');
   g_free (text);
 
   /* TRANSLATORS: the date in the flyout header, see
@@ -2102,7 +2102,7 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
   gtk_style_context_add_class (gtk_widget_get_style_context (self->frame), "shopno-cal-frame");
   gtk_container_add (GTK_CONTAINER (self), self->frame);
 
-  /* Header: the time, large, with smaller seconds, and the date */
+  /* Header: the time, large, with a smaller AM or PM, and the date */
   header = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
   gtk_style_context_add_class (gtk_widget_get_style_context (header), "shopno-cal-header");
   gtk_box_pack_start (GTK_BOX (self->frame), header, FALSE, FALSE, 0);
@@ -2114,9 +2114,10 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
   gtk_widget_set_valign (self->time_label, GTK_ALIGN_BASELINE);
   gtk_box_pack_start (GTK_BOX (time_box), self->time_label, FALSE, FALSE, 0);
 
-  self->seconds_label = shopno_cal_flyout_label_new ("shopno-cal-seconds");
-  gtk_widget_set_valign (self->seconds_label, GTK_ALIGN_BASELINE);
-  gtk_box_pack_start (GTK_BOX (time_box), self->seconds_label, FALSE, FALSE, 0);
+  self->period_label = shopno_cal_flyout_label_new ("shopno-cal-period");
+  gtk_widget_set_valign (self->period_label, GTK_ALIGN_BASELINE);
+  gtk_widget_set_no_show_all (self->period_label, TRUE);
+  gtk_box_pack_start (GTK_BOX (time_box), self->period_label, FALSE, FALSE, 0);
 
   self->date_button = gtk_button_new_with_label ("");
   gtk_button_set_relief (GTK_BUTTON (self->date_button), GTK_RELIEF_NONE);
