@@ -43,7 +43,10 @@ calendar, the selected day's details: its date, then "In 23 days ·
 Week 49 · Day 337 of 365". Shift-click a second day, or hold Shift with
 the arrow keys, to count the days between: "10 Nov → 2 Dec 2026", then
 "22 days apart (3 weeks, 1 day) · 17 working days including both", where
-working days skip the weekend. The details can be turned off. The arrows or
+working days skip the weekend. The details can be turned off. The copy
+button in the footer puts today's date or the time on the clipboard: as
+an ISO date, your locale's date, the long date, the date and time, or
+Unix time. The arrows or
 the mouse wheel change the month; click the title to pick a month of the
 year, and again for a year of the decade. From the keyboard, the arrow
 keys move between days, Page Up and Page Down change the month, and Home

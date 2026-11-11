@@ -414,6 +414,13 @@ shopno_cal_dialog_new (GtkWindow         *parent,
   g_object_bind_property (settings, "day-details", check, "active", BINDING_FLAGS);
   gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
 
+  check = gtk_check_button_new_with_mnemonic (_("Show the c_opy button"));
+  gtk_widget_set_tooltip_text (check, _("Puts today's date or the time on the clipboard, as an ISO, "
+                                        "local or long date, with the time, or as Unix time"));
+  gtk_widget_set_margin_start (check, 12);
+  g_object_bind_property (settings, "copy-button", check, "active", BINDING_FLAGS);
+  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
+
   gtk_widget_show_all (grid);
 
   return dialog;
