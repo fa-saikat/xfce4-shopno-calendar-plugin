@@ -27,6 +27,8 @@ Depends:
  xfce4-panel,
  ${misc:Depends},
  ${shlibs:Depends},
+Suggests:
+ picom,
 Description: Clock and calendar flyout for the Xfce panel
  Shopno Calendar is a panel clock for Xfce with a calendar flyout, in
  the spirit of the Windows 11 clock.

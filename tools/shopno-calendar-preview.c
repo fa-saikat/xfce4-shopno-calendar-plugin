@@ -37,6 +37,7 @@ static gboolean opt_week_numbers = FALSE;
 static gboolean opt_no_day_details = FALSE;
 static gboolean opt_no_copy = FALSE;
 static gboolean opt_no_timer = FALSE;
+static gboolean opt_blur = FALSE;
 
 static const GOptionEntry entries[] =
 {
@@ -51,6 +52,7 @@ static const GOptionEntry entries[] =
   { "no-day-details", 0, 0, G_OPTION_ARG_NONE, &opt_no_day_details, "Hide the day details", NULL },
   { "no-copy", 0, 0, G_OPTION_ARG_NONE, &opt_no_copy, "Hide the copy button", NULL },
   { "no-timer", 0, 0, G_OPTION_ARG_NONE, &opt_no_timer, "Hide the timer", NULL },
+  { "blur", 0, 0, G_OPTION_ARG_NONE, &opt_blur, "Use the window role and style for picom's blur", NULL },
   { NULL }
 };
 
@@ -85,6 +87,7 @@ main (int    argc,
                 "day-details", !opt_no_day_details,
                 "copy-button", !opt_no_copy,
                 "timer", !opt_no_timer,
+                "enable-blur", opt_blur,
                 NULL);
 
   clock = shopno_cal_clock_new ();

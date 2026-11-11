@@ -9,6 +9,7 @@ url='https://github.com/fa-saikat/xfce4-shopno-calendar-plugin'
 license=('GPL-2.0-or-later')
 depends=('glib2' 'gtk3' 'libxfce4ui' 'libxfce4util' 'xfce4-panel' 'xfconf')
 makedepends=('gettext' 'meson')
+optdepends=('picom: background blur')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
 # Built in CI from the checked-out tree; run updpkgsums before building
 # from the release tarball
@@ -21,4 +22,6 @@ build() {
 
 package() {
   meson install -C build --destdir "$pkgdir"
+  install -Dm644 "$pkgname-$pkgver/extras/picom/shopno-calendar.conf" \
+    "$pkgdir/usr/share/doc/$pkgname/picom-shopno-calendar.conf"
 }
