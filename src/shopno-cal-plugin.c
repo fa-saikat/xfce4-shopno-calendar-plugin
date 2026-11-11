@@ -26,6 +26,7 @@
 #include "shopno-cal-format.h"
 #include "shopno-cal-month.h"
 #include "shopno-cal-settings.h"
+#include "shopno-cal-timer.h"
 
 /* Shown when a custom format gives nothing */
 #define FALLBACK_FORMAT "%H:%M"
@@ -33,6 +34,11 @@
 /* Space between the flyout and the panel, and the screen edges (as in
  * Shopno Menu) */
 #define POPUP_GAP 12
+
+/* The running timer next to the clock */
+#define TIMER_RING_SIZE   12
+#define TIMER_RING_LINE   2.0
+#define TIMER_PAUSED_OPACITY 0.55
 
 typedef struct _ShopnoCalPluginClass ShopnoCalPluginClass;
 typedef struct _ShopnoCalPlugin      ShopnoCalPlugin;
@@ -49,9 +55,14 @@ struct _ShopnoCalPlugin
   ShopnoCalSettings *settings;
   XfconfChannel     *channel;
   ShopnoCalClock    *clock;
+  ShopnoCalTimer    *timer;
   gchar             *format;
 
   GtkWidget         *button;
+  GtkWidget         *box;
+  GtkWidget         *timer_box;
+  GtkWidget         *timer_ring;
+  GtkWidget         *timer_label;
   GtkWidget         *label;
   GtkWidget         *flyout;
 
@@ -136,14 +147,15 @@ shopno_cal_plugin_update_label (ShopnoCalPlugin *self)
 
 
 
-/* Every second while the flyout shows its seconds, otherwise as often as
- * the panel format needs */
+/* Every second while the flyout shows its seconds or a timer counts
+ * down, otherwise as often as the panel format needs */
 static void
 shopno_cal_plugin_update_interval (ShopnoCalPlugin *self)
 {
   guint interval = shopno_cal_format_interval (self->format);
 
-  if (self->flyout != NULL && gtk_widget_get_visible (self->flyout))
+  if ((self->flyout != NULL && gtk_widget_get_visible (self->flyout))
+      || shopno_cal_timer_get_state (self->timer) == SHOPNO_CAL_TIMER_RUNNING)
     interval = SHOPNO_CAL_CLOCK_SECOND;
 
   shopno_cal_clock_set_interval (self->clock, interval);
@@ -173,10 +185,20 @@ static void
 shopno_cal_plugin_update_orientation (ShopnoCalPlugin *self)
 {
   XfcePanelPluginMode mode = xfce_panel_plugin_get_mode (XFCE_PANEL_PLUGIN (self));
+  GtkOrientation      orientation = mode == XFCE_PANEL_PLUGIN_MODE_HORIZONTAL
+                                    ? GTK_ORIENTATION_HORIZONTAL : GTK_ORIENTATION_VERTICAL;
 
   /* A vertical panel turns its labels; a deskbar keeps them upright and
    * stacks the clock instead (see shopno_cal_format_panel) */
   gtk_label_set_angle (GTK_LABEL (self->label), mode == XFCE_PANEL_PLUGIN_MODE_VERTICAL ? 270 : 0);
+  gtk_label_set_angle (GTK_LABEL (self->timer_label), mode == XFCE_PANEL_PLUGIN_MODE_VERTICAL ? 270 : 0);
+
+  /* The timer goes before the clock, along the panel; its ring stays
+   * beside the time left unless the text is turned */
+  gtk_orientable_set_orientation (GTK_ORIENTABLE (self->box), orientation);
+  gtk_orientable_set_orientation (GTK_ORIENTABLE (self->timer_box),
+                                  mode == XFCE_PANEL_PLUGIN_MODE_VERTICAL
+                                  ? GTK_ORIENTATION_VERTICAL : GTK_ORIENTATION_HORIZONTAL);
 
   /* Windows aligns the two lines to the right, next to the screen edge */
   gtk_label_set_justify (GTK_LABEL (self->label),
@@ -205,6 +227,28 @@ shopno_cal_plugin_today (ShopnoCalPlugin *self,
 
 
 
+/* "Timer: 24:12 left", or NULL when the timer is idle */
+static gchar *
+shopno_cal_plugin_timer_text (ShopnoCalPlugin *self)
+{
+  ShopnoCalTimerState  state = shopno_cal_timer_get_state (self->timer);
+  gchar               *left;
+  gchar               *text;
+
+  if (state == SHOPNO_CAL_TIMER_IDLE)
+    return NULL;
+
+  left = shopno_cal_timer_format (shopno_cal_timer_get_remaining (self->timer));
+  text = state == SHOPNO_CAL_TIMER_PAUSED
+         ? g_strdup_printf (_("Timer paused: %s left"), left)
+         : g_strdup_printf (_("Timer: %s left"), left);
+  g_free (left);
+
+  return text;
+}
+
+
+
 /* Built when the pointer rests on the clock, so it is never out of date.
  * Not over the open flyout, which shows all of it already. */
 static gboolean
@@ -217,6 +261,7 @@ shopno_cal_plugin_query_tooltip (GtkWidget       *button,
 {
   GDate  today;
   gchar *markup;
+  gchar *timer;
 
   if (!shopno_cal_settings_get_show_tooltip (self->settings)
       || (self->flyout != NULL && gtk_widget_get_visible (self->flyout)))
@@ -225,6 +270,19 @@ shopno_cal_plugin_query_tooltip (GtkWidget       *button,
   shopno_cal_plugin_today (self, &today);
   markup = shopno_cal_details_tooltip (&today,
                                        shopno_cal_month_week_start (shopno_cal_settings_get_week_start (self->settings)));
+
+  timer = shopno_cal_plugin_timer_text (self);
+  if (timer != NULL)
+    {
+      gchar *escaped = g_markup_escape_text (timer, -1);
+      gchar *joined = g_strconcat (markup, "\n", escaped, NULL);
+
+      g_free (escaped);
+      g_free (markup);
+      g_free (timer);
+      markup = joined;
+    }
+
   gtk_tooltip_set_markup (tooltip, markup);
   g_free (markup);
 
@@ -246,6 +304,62 @@ shopno_cal_plugin_update_tooltip (ShopnoCalPlugin *self)
       self->tooltip_day = today;
       gtk_widget_trigger_tooltip_query (self->button);
     }
+}
+
+
+
+/*
+ * Timer
+ */
+
+static void
+shopno_cal_plugin_update_timer (ShopnoCalPlugin *self)
+{
+  ShopnoCalTimerState  state = shopno_cal_timer_get_state (self->timer);
+  gchar               *text;
+
+  gtk_widget_set_visible (self->timer_box, state != SHOPNO_CAL_TIMER_IDLE);
+  if (state == SHOPNO_CAL_TIMER_IDLE)
+    return;
+
+  text = shopno_cal_timer_format (shopno_cal_timer_get_remaining (self->timer));
+  if (g_strcmp0 (text, gtk_label_get_text (GTK_LABEL (self->timer_label))) != 0)
+    gtk_label_set_text (GTK_LABEL (self->timer_label), text);
+  g_free (text);
+
+  gtk_widget_set_opacity (self->timer_box, state == SHOPNO_CAL_TIMER_PAUSED ? TIMER_PAUSED_OPACITY : 1.0);
+  gtk_widget_queue_draw (self->timer_ring);
+}
+
+
+
+static void
+shopno_cal_plugin_timer_changed (ShopnoCalPlugin *self)
+{
+  shopno_cal_plugin_update_interval (self);
+  shopno_cal_plugin_update_timer (self);
+  gtk_widget_trigger_tooltip_query (self->button);
+}
+
+
+
+static void
+shopno_cal_plugin_timer_tick (ShopnoCalPlugin *self)
+{
+  if (shopno_cal_timer_get_state (self->timer) == SHOPNO_CAL_TIMER_RUNNING)
+    shopno_cal_plugin_update_timer (self);
+}
+
+
+
+static gboolean
+shopno_cal_plugin_draw_timer_ring (GtkWidget       *widget,
+                                   cairo_t         *cr,
+                                   ShopnoCalPlugin *self)
+{
+  shopno_cal_flyout_draw_ring (widget, cr, shopno_cal_timer_get_fraction (self->timer), TIMER_RING_LINE);
+
+  return FALSE;
 }
 
 
@@ -356,7 +470,7 @@ shopno_cal_plugin_popup (ShopnoCalPlugin *self)
 
   if (self->flyout == NULL)
     {
-      self->flyout = shopno_cal_flyout_new (self->settings, self->clock);
+      self->flyout = shopno_cal_flyout_new (self->settings, self->clock, self->timer);
       g_signal_connect_swapped (self->flyout, "show",
                                 G_CALLBACK (shopno_cal_plugin_flyout_visibility), self);
       g_signal_connect_swapped (self->flyout, "hide",
@@ -416,6 +530,10 @@ shopno_cal_plugin_construct (XfcePanelPlugin *plugin)
                             G_CALLBACK (shopno_cal_plugin_update_label), self);
   g_signal_connect_swapped (self->clock, "tick",
                             G_CALLBACK (shopno_cal_plugin_update_tooltip), self);
+  g_signal_connect_swapped (self->clock, "tick",
+                            G_CALLBACK (shopno_cal_plugin_timer_tick), self);
+  g_signal_connect_swapped (self->timer, "changed",
+                            G_CALLBACK (shopno_cal_plugin_timer_changed), self);
 
   shopno_cal_plugin_update_orientation (self);
 }
@@ -433,6 +551,9 @@ shopno_cal_plugin_free_data (XfcePanelPlugin *plugin)
       gtk_widget_destroy (self->flyout);
       self->flyout = NULL;
     }
+
+  g_signal_handlers_disconnect_by_data (self->timer, self);
+  g_object_unref (self->timer);
 
   g_signal_handlers_disconnect_by_data (self->clock, self);
   g_object_unref (self->clock);
@@ -532,6 +653,7 @@ shopno_cal_plugin_init (ShopnoCalPlugin *self)
 
   self->settings = shopno_cal_settings_new ();
   self->clock = shopno_cal_clock_new ();
+  self->timer = shopno_cal_timer_new ();
 
   self->button = xfce_panel_create_toggle_button ();
   gtk_widget_set_name (self->button, "shopno-calendar-button");
@@ -544,15 +666,37 @@ shopno_cal_plugin_init (ShopnoCalPlugin *self)
   g_date_clear (&self->tooltip_day, 1);
   gtk_container_add (GTK_CONTAINER (self), self->button);
 
-  self->label = gtk_label_new (NULL);
+  self->box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 8);
+  gtk_widget_set_halign (self->box, GTK_ALIGN_CENTER);
+  gtk_widget_set_valign (self->box, GTK_ALIGN_CENTER);
+  gtk_container_add (GTK_CONTAINER (self->button), self->box);
 
   /* Digits of equal width, so the clock does not wobble as it ticks */
   attrs = pango_attr_list_new ();
   pango_attr_list_insert (attrs, pango_attr_font_features_new ("tnum"));
-  gtk_label_set_attributes (GTK_LABEL (self->label), attrs);
-  pango_attr_list_unref (attrs);
 
-  gtk_container_add (GTK_CONTAINER (self->button), self->label);
+  self->timer_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+  gtk_widget_set_no_show_all (self->timer_box, TRUE);
+  gtk_box_pack_start (GTK_BOX (self->box), self->timer_box, FALSE, FALSE, 0);
+
+  self->timer_ring = gtk_drawing_area_new ();
+  gtk_widget_set_size_request (self->timer_ring, TIMER_RING_SIZE, TIMER_RING_SIZE);
+  gtk_widget_set_halign (self->timer_ring, GTK_ALIGN_CENTER);
+  gtk_widget_set_valign (self->timer_ring, GTK_ALIGN_CENTER);
+  g_signal_connect (self->timer_ring, "draw", G_CALLBACK (shopno_cal_plugin_draw_timer_ring), self);
+  gtk_box_pack_start (GTK_BOX (self->timer_box), self->timer_ring, FALSE, FALSE, 0);
+  gtk_widget_show (self->timer_ring);
+
+  self->timer_label = gtk_label_new (NULL);
+  gtk_label_set_attributes (GTK_LABEL (self->timer_label), attrs);
+  gtk_box_pack_start (GTK_BOX (self->timer_box), self->timer_label, FALSE, FALSE, 0);
+  gtk_widget_show (self->timer_label);
+
+  self->label = gtk_label_new (NULL);
+  gtk_label_set_attributes (GTK_LABEL (self->label), attrs);
+  gtk_box_pack_start (GTK_BOX (self->box), self->label, FALSE, FALSE, 0);
+
+  pango_attr_list_unref (attrs);
 
   gtk_widget_show_all (self->button);
 }

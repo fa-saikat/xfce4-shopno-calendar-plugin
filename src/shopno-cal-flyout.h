@@ -19,6 +19,7 @@
 
 #include "shopno-cal-clock.h"
 #include "shopno-cal-settings.h"
+#include "shopno-cal-timer.h"
 
 G_BEGIN_DECLS
 
@@ -26,9 +27,11 @@ G_BEGIN_DECLS
 G_DECLARE_FINAL_TYPE (ShopnoCalFlyout, shopno_cal_flyout, SHOPNO, CAL_FLYOUT, GtkWindow)
 
 /* The calendar that opens from the panel clock. It shows seconds, so keep
- * the clock ticking every second while it is visible. */
+ * the clock ticking every second while it is visible. The timer is the
+ * panel's, which shows it while the flyout is closed. */
 GtkWidget *shopno_cal_flyout_new            (ShopnoCalSettings *settings,
-                                             ShopnoCalClock    *clock);
+                                             ShopnoCalClock    *clock,
+                                             ShopnoCalTimer    *timer);
 
 /* Shows the current month and moves the window to x, y */
 void       shopno_cal_flyout_popup          (ShopnoCalFlyout   *flyout,
@@ -39,6 +42,13 @@ void       shopno_cal_flyout_show_today     (ShopnoCalFlyout   *flyout);
 
 void       shopno_cal_flyout_set_grab_input (ShopnoCalFlyout   *flyout,
                                              gboolean           grab_input);
+
+/* A ring of a fraction of time left, emptying clockwise from the top over
+ * a faint full ring, in the widget's color and the theme's accent */
+void       shopno_cal_flyout_draw_ring      (GtkWidget         *widget,
+                                             cairo_t           *cr,
+                                             gdouble            fraction,
+                                             gdouble            line);
 
 G_END_DECLS
 
