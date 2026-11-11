@@ -184,6 +184,15 @@ button.shopno-cal-cell:disabled {
   color: alpha(@theme_fg_color, 0.2);
 }
 
+/* The days from the selected day to a shift-clicked one, lightly filled */
+button.shopno-cal-day.in-range {
+  background-color: alpha(@theme_selected_bg_color, 0.18);
+}
+
+button.shopno-cal-day.in-range:not(.today):hover {
+  background-color: alpha(@theme_selected_bg_color, 0.28);
+}
+
 /* The selected day, month or year: a ring in the selection color, mixed
  * with the text color to stand out on dark themes too */
 button.shopno-cal-day.selected,
@@ -203,4 +212,13 @@ button.shopno-cal-cell.today {
 button.shopno-cal-day.today.selected,
 button.shopno-cal-cell.today.selected {
   box-shadow: none;
+}
+
+/* The line under the calendar: the selected day's week and day of the
+ * year, or the days between two days */
+
+.shopno-cal-details {
+  margin-top: 8px;
+  font-size: smaller;
+  color: alpha(@theme_fg_color, 0.7);
 }

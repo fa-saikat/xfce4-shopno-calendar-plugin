@@ -68,6 +68,7 @@ gboolean           shopno_cal_settings_get_show_seconds  (ShopnoCalSettings *set
 ShopnoCalWeekStart shopno_cal_settings_get_week_start    (ShopnoCalSettings *settings);
 ShopnoCalWeekend   shopno_cal_settings_get_weekend       (ShopnoCalSettings *settings);
 gboolean           shopno_cal_settings_get_week_numbers  (ShopnoCalSettings *settings);
+gboolean           shopno_cal_settings_get_day_details   (ShopnoCalSettings *settings);
 
 G_END_DECLS
 

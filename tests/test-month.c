@@ -165,6 +165,101 @@ test_row_week (void)
 
 
 
+static void
+check_day_week (GDateDay     day,
+                GDateWeekday week_start,
+                guint        expected)
+{
+  GDate date;
+
+  g_date_clear (&date, 1);
+  g_date_set_dmy (&date, day, G_DATE_NOVEMBER, 2026);
+  g_assert_cmpuint (shopno_cal_month_day_week (&date, week_start), ==, expected);
+}
+
+
+
+static void
+test_day_week (void)
+{
+  /* Sunday 8 November 2026 is in ISO week 45, but in a week that starts
+   * on Sunday its row is numbered 46, and the details follow the grid */
+  check_day_week (8, G_DATE_MONDAY, 45);
+  check_day_week (8, G_DATE_SUNDAY, 46);
+  check_day_week (8, G_DATE_SATURDAY, 46);
+  check_day_week (6, G_DATE_SATURDAY, 45);
+  check_day_week (10, G_DATE_MONDAY, 46);
+  check_day_week (10, G_DATE_SUNDAY, 46);
+}
+
+
+
+static guint
+working_days (GDateMonth       first_month,
+              GDateDay         first_day,
+              GDateMonth       last_month,
+              GDateDay         last_day,
+              ShopnoCalWeekend weekend)
+{
+  GDate first;
+  GDate last;
+
+  g_date_clear (&first, 1);
+  g_date_set_dmy (&first, first_day, first_month, 2026);
+  g_date_clear (&last, 1);
+  g_date_set_dmy (&last, last_day, last_month, 2026);
+
+  return shopno_cal_month_working_days (&first, &last, weekend);
+}
+
+
+
+static void
+test_working_days (void)
+{
+  GDate    first;
+  GDate    last;
+  GDate    day;
+  guint    count;
+  guint    weekend;
+
+  /* Tuesday 10 November to Wednesday 2 December 2026: 23 days, 6 of them
+   * Saturdays and Sundays, 3 of them Fridays */
+  g_assert_cmpuint (working_days (11, 10, 12, 2, SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY), ==, 17);
+  g_assert_cmpuint (working_days (12, 2, 11, 10, SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY), ==, 17);
+  g_assert_cmpuint (working_days (11, 10, 12, 2, SHOPNO_CAL_WEEKEND_FRIDAY), ==, 20);
+  g_assert_cmpuint (working_days (11, 10, 12, 2, SHOPNO_CAL_WEEKEND_NONE), ==, 23);
+
+  /* Tuesday to Friday: the Friday counts in one weekend and not the other */
+  g_assert_cmpuint (working_days (11, 10, 11, 13, SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY), ==, 4);
+  g_assert_cmpuint (working_days (11, 10, 11, 13, SHOPNO_CAL_WEEKEND_FRIDAY_SATURDAY), ==, 3);
+
+  /* One day, on a weekday and on the weekend */
+  g_assert_cmpuint (working_days (11, 10, 11, 10, SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY), ==, 1);
+  g_assert_cmpuint (working_days (11, 14, 11, 14, SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY), ==, 0);
+
+  /* Against counting day by day, for every start and length up to a few
+   * weeks */
+  g_date_clear (&first, 1);
+  g_date_clear (&last, 1);
+  for (weekend = 0; weekend <= SHOPNO_CAL_WEEKEND_LAST; weekend++)
+    for (guint start = 1; start <= 7; start++)
+      for (guint length = 0; length < 30; length++)
+        {
+          g_date_set_dmy (&first, start, G_DATE_NOVEMBER, 2026);
+          last = first;
+          g_date_add_days (&last, length);
+
+          count = 0;
+          for (day = first; g_date_compare (&day, &last) <= 0; g_date_add_days (&day, 1))
+            count += !shopno_cal_month_is_weekend (weekend, g_date_get_weekday (&day));
+
+          g_assert_cmpuint (shopno_cal_month_working_days (&first, &last, weekend), ==, count);
+        }
+}
+
+
+
 int
 main (int    argc,
       char **argv)
@@ -178,6 +273,8 @@ main (int    argc,
   g_test_add_func ("/month/week-start", test_week_start);
   g_test_add_func ("/month/weekend", test_weekend);
   g_test_add_func ("/month/row-week", test_row_week);
+  g_test_add_func ("/month/day-week", test_day_week);
+  g_test_add_func ("/month/working-days", test_working_days);
 
   return g_test_run ();
 }
