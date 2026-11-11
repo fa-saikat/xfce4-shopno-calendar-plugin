@@ -772,6 +772,14 @@ shopno_cal_flyout_select_day (ShopnoCalFlyout *self,
 
 
 
+static void
+shopno_cal_flyout_show_today (ShopnoCalFlyout *self)
+{
+  shopno_cal_flyout_select_day (self, &self->today);
+}
+
+
+
 /* Makes a day the other end of a range from the selected day, to count
  * the days between, and shows its month. Without the details there is
  * nothing to count, so the day is only selected. */
@@ -922,7 +930,6 @@ shopno_cal_flyout_update_timer (ShopnoCalFlyout *self)
 
   gtk_widget_queue_draw (self->timer_ring);
 
-  /* The preset the idle timer is set to is filled */
   for (i = 0; i < G_N_ELEMENTS (timer_presets); i++)
     shopno_cal_flyout_set_class (self->timer_presets[i], "on",
                                  state == SHOPNO_CAL_TIMER_IDLE && duration == timer_presets[i] * 60);
@@ -1023,7 +1030,6 @@ shopno_cal_flyout_timer_minutes_changed (ShopnoCalFlyout *self)
 
 
 
-/* A minute more or less, while the timer is idle */
 static void
 shopno_cal_flyout_timer_adjust (ShopnoCalFlyout *self,
                                 gint             minutes)
@@ -1969,7 +1975,6 @@ shopno_cal_flyout_details_label_new (const gchar *style_class)
 
 
 
-/* The copy menu: a row per format, with its name and the value to copy */
 static GtkWidget *
 shopno_cal_flyout_copy_menu_new (ShopnoCalFlyout *self)
 {
@@ -2006,7 +2011,6 @@ shopno_cal_flyout_copy_menu_new (ShopnoCalFlyout *self)
       gtk_box_pack_end (GTK_BOX (row_box), self->copy_values[i], FALSE, FALSE, 0);
     }
 
-  /* Current values each time it opens, laid out to fit */
   g_signal_connect_swapped (popover, "show",
                             G_CALLBACK (shopno_cal_flyout_copy_menu_shown), self);
   gtk_widget_show_all (box);
@@ -2016,7 +2020,6 @@ shopno_cal_flyout_copy_menu_new (ShopnoCalFlyout *self)
 
 
 
-/* A button of the timer, packed into a row */
 static GtkWidget *
 shopno_cal_flyout_chip_new (GtkWidget   *row,
                             const gchar *text,
@@ -2034,7 +2037,6 @@ shopno_cal_flyout_chip_new (GtkWidget   *row,
 
 
 
-/* A page of the details: a title, a line of facts, and a hint */
 static GtkWidget *
 shopno_cal_flyout_details_page_new (GtkWidget   **title,
                                     GtkWidget   **facts,
@@ -2287,7 +2289,6 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
   g_signal_connect_swapped (self->timer_start, "clicked",
                             G_CALLBACK (shopno_cal_flyout_timer_start_clicked), self);
 
-  /* The presets share the width */
   row = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
   gtk_box_set_homogeneous (GTK_BOX (row), TRUE);
   gtk_box_pack_start (GTK_BOX (self->timer_section), row, FALSE, FALSE, 0);
@@ -2303,7 +2304,7 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
       g_free (text);
     }
 
-  /* Footer: a status on the left, and the copy button */
+  /* Footer: the sync state or what was copied, then the buttons */
   self->footer = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
   gtk_style_context_add_class (gtk_widget_get_style_context (self->footer), "shopno-cal-footer");
   gtk_box_pack_end (GTK_BOX (self->frame), self->footer, FALSE, FALSE, 0);
@@ -2376,16 +2377,6 @@ shopno_cal_flyout_popup (ShopnoCalFlyout *flyout,
 
   gtk_window_move (GTK_WINDOW (flyout), x, y);
   gtk_window_present_with_time (GTK_WINDOW (flyout), gtk_get_current_event_time ());
-}
-
-
-
-void
-shopno_cal_flyout_show_today (ShopnoCalFlyout *flyout)
-{
-  g_return_if_fail (SHOPNO_IS_CAL_FLYOUT (flyout));
-
-  shopno_cal_flyout_select_day (flyout, &flyout->today);
 }
 
 

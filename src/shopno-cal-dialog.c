@@ -275,6 +275,26 @@ shopno_cal_dialog_option_new (GtkWidget   *grid,
 
 
 
+static GtkWidget *
+shopno_cal_dialog_check_new (GtkWidget         *grid,
+                             gint              *row,
+                             ShopnoCalSettings *settings,
+                             const gchar       *property,
+                             const gchar       *mnemonic,
+                             const gchar       *tooltip)
+{
+  GtkWidget *check = gtk_check_button_new_with_mnemonic (mnemonic);
+
+  gtk_widget_set_tooltip_text (check, tooltip);
+  gtk_widget_set_margin_start (check, 12);
+  g_object_bind_property (settings, property, check, "active", BINDING_FLAGS);
+  gtk_grid_attach (GTK_GRID (grid), check, 0, (*row)++, 2, 1);
+
+  return check;
+}
+
+
+
 static void
 shopno_cal_dialog_bind_custom (ShopnoCalSettings *settings,
                                GtkWidget         *widget,
@@ -353,23 +373,19 @@ shopno_cal_dialog_new (GtkWindow         *parent,
   shopno_cal_dialog_bind_custom (settings, codes_grid, TRUE);
   gtk_grid_attach (GTK_GRID (grid), codes_grid, 1, row++, 1, 1);
 
-  check = gtk_check_button_new_with_mnemonic (_("_24-hour time"));
-  gtk_widget_set_margin_start (check, 12);
-  g_object_bind_property (settings, "use-24h", check, "active", BINDING_FLAGS);
+  check = shopno_cal_dialog_check_new (grid, &row, settings, "use-24h",
+                                       _("_24-hour time"),
+                                       NULL);
   shopno_cal_dialog_bind_custom (settings, check, FALSE);
-  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
 
-  check = gtk_check_button_new_with_mnemonic (_("Show _seconds"));
-  gtk_widget_set_margin_start (check, 12);
-  g_object_bind_property (settings, "show-seconds", check, "active", BINDING_FLAGS);
+  check = shopno_cal_dialog_check_new (grid, &row, settings, "show-seconds",
+                                       _("Show _seconds"),
+                                       NULL);
   shopno_cal_dialog_bind_custom (settings, check, FALSE);
-  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
 
-  check = gtk_check_button_new_with_mnemonic (_("Show the full date on _hover"));
-  gtk_widget_set_tooltip_text (check, _("The full date and week number, without opening the calendar"));
-  gtk_widget_set_margin_start (check, 12);
-  g_object_bind_property (settings, "show-tooltip", check, "active", BINDING_FLAGS);
-  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
+  shopno_cal_dialog_check_new (grid, &row, settings, "show-tooltip",
+                               _("Show the full date on _hover"),
+                               _("The full date and week number, without opening the calendar"));
 
   /* Preview */
   label = shopno_cal_dialog_heading_new (_("Preview"));
@@ -401,34 +417,26 @@ shopno_cal_dialog_new (GtkWindow         *parent,
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (combo), _(weekends[i]));
   g_object_bind_property (settings, "weekend", combo, "active", BINDING_FLAGS);
 
-  check = gtk_check_button_new_with_mnemonic (_("Show week _numbers"));
-  gtk_widget_set_tooltip_text (check, _("ISO 8601 week numbers, as used at work and in schools"));
-  gtk_widget_set_margin_start (check, 12);
-  g_object_bind_property (settings, "week-numbers", check, "active", BINDING_FLAGS);
-  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
+  shopno_cal_dialog_check_new (grid, &row, settings, "week-numbers",
+                               _("Show week _numbers"),
+                               _("ISO 8601 week numbers, as used at work and in schools"));
 
-  check = gtk_check_button_new_with_mnemonic (_("Show day de_tails"));
-  gtk_widget_set_tooltip_text (check, _("The selected day's week, its day of the year and how far away it "
-                                        "is, under the calendar. Shift-click a second day to count the "
-                                        "days between."));
-  gtk_widget_set_margin_start (check, 12);
-  g_object_bind_property (settings, "day-details", check, "active", BINDING_FLAGS);
-  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
+  shopno_cal_dialog_check_new (grid, &row, settings, "day-details",
+                               _("Show day de_tails"),
+                               _("The selected day's week, its day of the year and how far away it "
+                                 "is, under the calendar. Shift-click a second day to count the "
+                                 "days between."));
 
-  check = gtk_check_button_new_with_mnemonic (_("Show the c_opy button"));
-  gtk_widget_set_tooltip_text (check, _("Puts today's date or the time on the clipboard, as an ISO, "
-                                        "local or long date, with the time, or as Unix time"));
-  gtk_widget_set_margin_start (check, 12);
-  g_object_bind_property (settings, "copy-button", check, "active", BINDING_FLAGS);
-  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
+  shopno_cal_dialog_check_new (grid, &row, settings, "copy-button",
+                               _("Show the c_opy button"),
+                               _("Puts today's date or the time on the clipboard, as an ISO, "
+                                 "local or long date, with the time, or as Unix time"));
 
-  check = gtk_check_button_new_with_mnemonic (_("Show the ti_mer"));
-  gtk_widget_set_tooltip_text (check, _("A countdown of 1, 5, 15 or 25 minutes that ends with a "
-                                        "desktop notification, and keeps running when the "
-                                        "calendar is closed"));
-  gtk_widget_set_margin_start (check, 12);
-  g_object_bind_property (settings, "timer", check, "active", BINDING_FLAGS);
-  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
+  shopno_cal_dialog_check_new (grid, &row, settings, "timer",
+                               _("Show the ti_mer"),
+                               _("A countdown that keeps running when the calendar is "
+                                 "closed, shows the time left on the panel, and ends "
+                                 "with a desktop notification"));
 
   label = gtk_label_new_with_mnemonic (_("Dat_e & Time settings:"));
   gtk_label_set_xalign (GTK_LABEL (label), 0.0);
@@ -444,10 +452,9 @@ shopno_cal_dialog_new (GtkWindow         *parent,
   g_object_bind_property (settings, "time-settings-command", entry, "text", BINDING_FLAGS);
   gtk_grid_attach (GTK_GRID (grid), entry, 1, row++, 1, 1);
 
-  check = gtk_check_button_new_with_mnemonic (_("_Blur the background behind the calendar"));
-  gtk_widget_set_margin_start (check, 12);
-  g_object_bind_property (settings, "enable-blur", check, "active", BINDING_FLAGS);
-  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
+  shopno_cal_dialog_check_new (grid, &row, settings, "enable-blur",
+                               _("_Blur the background behind the calendar"),
+                               NULL);
 
   text = g_strdup_printf ("<small>%s\n<a href=\"%s\">%s</a></small>",
                           _("Blur needs the picom compositor with the Shopno Calendar rules."),
