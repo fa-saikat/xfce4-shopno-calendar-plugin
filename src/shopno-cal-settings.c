@@ -26,6 +26,9 @@ enum
   PROP_CUSTOM_FORMAT,
   PROP_USE_24H,
   PROP_SHOW_SECONDS,
+  PROP_WEEK_START,
+  PROP_WEEKEND,
+  PROP_WEEK_NUMBERS,
   N_PROPERTIES
 };
 
@@ -37,6 +40,9 @@ struct _ShopnoCalSettings
   gchar   *custom_format;
   gboolean use_24h;
   gboolean show_seconds;
+  guint    week_start;
+  guint    weekend;
+  gboolean week_numbers;
 };
 
 static GParamSpec *properties[N_PROPERTIES];
@@ -84,6 +90,18 @@ shopno_cal_settings_get_property (GObject    *object,
 
     case PROP_SHOW_SECONDS:
       g_value_set_boolean (value, self->show_seconds);
+      break;
+
+    case PROP_WEEK_START:
+      g_value_set_uint (value, self->week_start);
+      break;
+
+    case PROP_WEEKEND:
+      g_value_set_uint (value, self->weekend);
+      break;
+
+    case PROP_WEEK_NUMBERS:
+      g_value_set_boolean (value, self->week_numbers);
       break;
 
     default:
@@ -141,6 +159,30 @@ shopno_cal_settings_set_property (GObject      *object,
         }
       break;
 
+    case PROP_WEEK_START:
+      if (self->week_start != g_value_get_uint (value))
+        {
+          self->week_start = g_value_get_uint (value);
+          g_object_notify_by_pspec (object, pspec);
+        }
+      break;
+
+    case PROP_WEEKEND:
+      if (self->weekend != g_value_get_uint (value))
+        {
+          self->weekend = g_value_get_uint (value);
+          g_object_notify_by_pspec (object, pspec);
+        }
+      break;
+
+    case PROP_WEEK_NUMBERS:
+      if (self->week_numbers != g_value_get_boolean (value))
+        {
+          self->week_numbers = g_value_get_boolean (value);
+          g_object_notify_by_pspec (object, pspec);
+        }
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -191,6 +233,21 @@ shopno_cal_settings_class_init (ShopnoCalSettingsClass *klass)
                           FALSE,
                           G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
 
+  properties[PROP_WEEK_START] =
+    g_param_spec_uint ("week-start", NULL, NULL,
+                       0, SHOPNO_CAL_WEEK_START_LAST, SHOPNO_CAL_WEEK_START_LOCALE,
+                       G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
+  properties[PROP_WEEKEND] =
+    g_param_spec_uint ("weekend", NULL, NULL,
+                       0, SHOPNO_CAL_WEEKEND_LAST, SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY,
+                       G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
+  properties[PROP_WEEK_NUMBERS] =
+    g_param_spec_boolean ("week-numbers", NULL, NULL,
+                          FALSE,
+                          G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
   g_object_class_install_properties (object_class, N_PROPERTIES, properties);
 }
 
@@ -203,6 +260,9 @@ shopno_cal_settings_init (ShopnoCalSettings *self)
   self->custom_format = g_strdup (SHOPNO_CAL_DEFAULT_CUSTOM_FORMAT);
   self->use_24h = shopno_cal_settings_locale_uses_24h ();
   self->show_seconds = FALSE;
+  self->week_start = SHOPNO_CAL_WEEK_START_LOCALE;
+  self->weekend = SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY;
+  self->week_numbers = FALSE;
 }
 
 
@@ -251,4 +311,34 @@ shopno_cal_settings_get_show_seconds (ShopnoCalSettings *settings)
   g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), FALSE);
 
   return settings->show_seconds;
+}
+
+
+
+ShopnoCalWeekStart
+shopno_cal_settings_get_week_start (ShopnoCalSettings *settings)
+{
+  g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), SHOPNO_CAL_WEEK_START_LOCALE);
+
+  return settings->week_start;
+}
+
+
+
+ShopnoCalWeekend
+shopno_cal_settings_get_weekend (ShopnoCalSettings *settings)
+{
+  g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY);
+
+  return settings->weekend;
+}
+
+
+
+gboolean
+shopno_cal_settings_get_week_numbers (ShopnoCalSettings *settings)
+{
+  g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), FALSE);
+
+  return settings->week_numbers;
 }

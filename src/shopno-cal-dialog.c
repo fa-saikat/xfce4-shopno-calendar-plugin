@@ -19,6 +19,7 @@
 
 #include "shopno-cal-dialog.h"
 #include "shopno-cal-format.h"
+#include "shopno-cal-month.h"
 
 #define BINDING_FLAGS (G_BINDING_BIDIRECTIONAL | G_BINDING_SYNC_CREATE)
 
@@ -34,6 +35,28 @@ static const gchar *layouts[] =
 };
 
 G_STATIC_ASSERT (G_N_ELEMENTS (layouts) == SHOPNO_CAL_LAYOUT_LAST + 1);
+
+/* In the order of ShopnoCalWeekStart, after the region's day */
+static const gchar *week_starts[] =
+{
+  N_("Monday"),
+  N_("Sunday"),
+  N_("Saturday"),
+};
+
+G_STATIC_ASSERT (G_N_ELEMENTS (week_starts) == SHOPNO_CAL_WEEK_START_LAST);
+
+/* In the order of ShopnoCalWeekend */
+static const gchar *weekends[] =
+{
+  N_("Saturday and Sunday"),
+  N_("Friday and Saturday"),
+  N_("Friday"),
+  N_("Sunday"),
+  N_("None"),
+};
+
+G_STATIC_ASSERT (G_N_ELEMENTS (weekends) == SHOPNO_CAL_WEEKEND_LAST + 1);
 
 /* The codes most people need; the link lists the rest */
 static const struct
@@ -230,6 +253,27 @@ shopno_cal_dialog_is_not_custom (GBinding     *binding,
 
 
 
+static GtkWidget *
+shopno_cal_dialog_option_new (GtkWidget   *grid,
+                              gint        *row,
+                              const gchar *mnemonic)
+{
+  GtkWidget *label = gtk_label_new_with_mnemonic (mnemonic);
+  GtkWidget *combo = gtk_combo_box_text_new ();
+
+  gtk_label_set_xalign (GTK_LABEL (label), 0.0);
+  gtk_widget_set_margin_start (label, 12);
+  gtk_grid_attach (GTK_GRID (grid), label, 0, *row, 1, 1);
+
+  gtk_widget_set_hexpand (combo, TRUE);
+  gtk_label_set_mnemonic_widget (GTK_LABEL (label), combo);
+  gtk_grid_attach (GTK_GRID (grid), combo, 1, (*row)++, 1, 1);
+
+  return combo;
+}
+
+
+
 static void
 shopno_cal_dialog_bind_custom (ShopnoCalSettings *settings,
                                GtkWidget         *widget,
@@ -254,6 +298,8 @@ shopno_cal_dialog_new (GtkWindow         *parent,
   GtkWidget *entry;
   GtkWidget *check;
   GtkWidget *codes_grid;
+  gchar     *name;
+  gchar     *text;
   gint       row = 0;
 
   g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), NULL);
@@ -326,6 +372,33 @@ shopno_cal_dialog_new (GtkWindow         *parent,
   label = shopno_cal_dialog_preview_new (settings, clock);
   gtk_widget_set_margin_start (label, 12);
   gtk_grid_attach (GTK_GRID (grid), label, 0, row++, 2, 1);
+
+  /* Calendar */
+  label = shopno_cal_dialog_heading_new (_("Calendar"));
+  gtk_widget_set_margin_top (label, 12);
+  gtk_grid_attach (GTK_GRID (grid), label, 0, row++, 2, 1);
+
+  combo = shopno_cal_dialog_option_new (grid, &row, _("First _day of the week:"));
+  name = shopno_cal_month_weekday_name (shopno_cal_month_locale_week_start (), FALSE);
+  /* TRANSLATORS: %s is the first day of the week in the user's region */
+  text = g_strdup_printf (_("As in your region (%s)"), name);
+  gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (combo), text);
+  g_free (text);
+  g_free (name);
+  for (guint i = 0; i < G_N_ELEMENTS (week_starts); i++)
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (combo), _(week_starts[i]));
+  g_object_bind_property (settings, "week-start", combo, "active", BINDING_FLAGS);
+
+  combo = shopno_cal_dialog_option_new (grid, &row, _("_Weekend:"));
+  for (guint i = 0; i < G_N_ELEMENTS (weekends); i++)
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (combo), _(weekends[i]));
+  g_object_bind_property (settings, "weekend", combo, "active", BINDING_FLAGS);
+
+  check = gtk_check_button_new_with_mnemonic (_("Show week _numbers"));
+  gtk_widget_set_tooltip_text (check, _("ISO 8601 week numbers, as used at work and in schools"));
+  gtk_widget_set_margin_start (check, 12);
+  g_object_bind_property (settings, "week-numbers", check, "active", BINDING_FLAGS);
+  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
 
   gtk_widget_show_all (grid);
 

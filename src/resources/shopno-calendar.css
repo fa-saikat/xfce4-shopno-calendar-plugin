@@ -147,6 +147,12 @@ button.shopno-cal-arrow:disabled {
   color: alpha(@theme_fg_color, 0.55);
 }
 
+.shopno-cal-week-number {
+  min-width: 28px;
+  font-size: smaller;
+  color: alpha(@theme_fg_color, 0.45);
+}
+
 button.shopno-cal-day {
   min-width: 40px;
   min-height: 36px;
@@ -161,6 +167,17 @@ button.shopno-cal-cell {
 button.shopno-cal-day.outside,
 button.shopno-cal-cell.outside {
   color: alpha(@theme_fg_color, 0.4);
+}
+
+/* Weekend days, in the selection color mixed with the text color, as the
+ * date in the header */
+.shopno-cal-weekday.weekend,
+button.shopno-cal-day.weekend:not(.today) {
+  color: mix(@theme_selected_bg_color, @theme_fg_color, 0.4);
+}
+
+button.shopno-cal-day.weekend.outside:not(.today) {
+  color: alpha(mix(@theme_selected_bg_color, @theme_fg_color, 0.4), 0.45);
 }
 
 button.shopno-cal-cell:disabled {

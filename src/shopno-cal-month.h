@@ -17,6 +17,8 @@
 
 #include <glib.h>
 
+#include "shopno-cal-settings.h"
+
 G_BEGIN_DECLS
 
 /* A month is shown as six weeks, so the grid keeps its height from one
@@ -29,6 +31,18 @@ G_BEGIN_DECLS
 /* The first day of the week in the user's locale */
 GDateWeekday shopno_cal_month_locale_week_start (void);
 
+/* The first day of the week for the week-start setting */
+GDateWeekday shopno_cal_month_week_start        (ShopnoCalWeekStart week_start);
+
+gboolean     shopno_cal_month_is_weekend        (ShopnoCalWeekend   weekend,
+                                                 GDateWeekday       weekday);
+
+/* The ISO 8601 week number of a row of the grid that begins on start.
+ * A row that does not begin on Monday holds days of two ISO weeks; it
+ * takes the number of the week its Monday belongs to, which covers most
+ * of its days. */
+guint        shopno_cal_month_row_week          (const GDate       *start);
+
 /* The date of the top-left cell of the month's grid: the month's first
  * day, or the last week start before it */
 void         shopno_cal_month_grid_start        (GDateYear     year,
@@ -36,8 +50,9 @@ void         shopno_cal_month_grid_start        (GDateYear     year,
                                                  GDateWeekday  week_start,
                                                  GDate        *start);
 
-/* The abbreviated weekday name in the user's locale */
-gchar       *shopno_cal_month_weekday_name      (GDateWeekday  weekday);
+/* The weekday name in the user's locale, full or abbreviated */
+gchar       *shopno_cal_month_weekday_name      (GDateWeekday  weekday,
+                                                 gboolean      abbreviated);
 
 G_END_DECLS
 

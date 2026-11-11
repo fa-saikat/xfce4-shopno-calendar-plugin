@@ -34,14 +34,18 @@ with a live preview.
 
 **Calendar flyout.** Click the clock for the time, large, the full date,
 and the month, with today as a filled square. The week starts on the day
-your locale uses. The arrows or the mouse wheel change the month; click
-the title to pick a month of the year, and again for a year of the
-decade. From the keyboard, the arrow keys move between days, Page Up and
-Page Down change the month, and Home goes back to today. Every day is
-named for screen readers. The flyout opens next to the clock on any panel edge,
-and closes on Escape, a click outside or another click on the clock. It
-takes every color from your GTK theme, light or dark; rules in
-`~/.config/gtk-3.0/gtk.css` can override its style.
+your locale uses, or on Monday, Sunday or Saturday if you choose. The
+weekend is tinted: Saturday and Sunday, Friday and Saturday as in
+Bangladesh and much of the Middle East, Friday only, Sunday only, or
+none. ISO 8601 week numbers can be shown left of the days. The arrows or
+the mouse wheel change the month; click the title to pick a month of the
+year, and again for a year of the decade. From the keyboard, the arrow
+keys move between days, Page Up and Page Down change the month, and Home
+goes back to today. Every day is named for screen readers. The flyout
+opens next to the clock on any panel edge, and closes on Escape, a click
+outside or another click on the clock. It takes every color from your
+GTK theme, light or dark; rules in `~/.config/gtk-3.0/gtk.css` can
+override its style.
 
 ## Installing
 
