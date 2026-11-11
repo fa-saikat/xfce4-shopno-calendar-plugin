@@ -14,6 +14,11 @@
 
 #include "config.h"
 
+#include <langinfo.h>
+#include <string.h>
+
+#include <glib/gi18n-lib.h>
+
 #include "shopno-cal-clock.h"
 #include "shopno-cal-format.h"
 
@@ -140,4 +145,100 @@ shopno_cal_format_time (GDateTime   *time,
   g_free (text);
 
   return result;
+}
+
+
+
+const gchar *
+shopno_cal_format_copy_name (ShopnoCalCopyFormat format)
+{
+  switch (format)
+    {
+    case SHOPNO_CAL_COPY_ISO_DATE:
+      return _("ISO date");
+
+    case SHOPNO_CAL_COPY_LOCAL_DATE:
+      return _("Local date");
+
+    case SHOPNO_CAL_COPY_LONG_DATE:
+      return _("Long date");
+
+    case SHOPNO_CAL_COPY_DATE_TIME:
+      return _("Date and time");
+
+    case SHOPNO_CAL_COPY_UNIX_TIME:
+      return _("Unix time");
+
+    default:
+      g_return_val_if_reached (NULL);
+    }
+}
+
+
+
+/* The locale's short date, with the year in full: many locales use two
+ * digits, which is ambiguous in a file name or a form */
+static gchar *
+shopno_cal_format_local_date (GDateTime *time)
+{
+  const gchar *d_fmt = nl_langinfo (D_FMT);
+  GString     *format;
+  gchar       *text;
+
+  if (d_fmt == NULL || *d_fmt == '\0')
+    return g_date_time_format (time, "%x");
+
+  format = g_string_new (NULL);
+  for (const gchar *p = d_fmt; *p != '\0'; p++)
+    {
+      if (p[0] == '%' && p[1] == 'y')
+        {
+          g_string_append (format, "%Y");
+          p++;
+        }
+      else if (p[0] == '%' && p[1] != '\0')
+        {
+          /* Keep any other code, including %%, whole */
+          g_string_append_len (format, p, 2);
+          p++;
+        }
+      else
+        g_string_append_c (format, *p);
+    }
+
+  text = g_date_time_format (time, format->str);
+  g_string_free (format, TRUE);
+
+  return text;
+}
+
+
+
+gchar *
+shopno_cal_format_copy (GDateTime          *time,
+                        ShopnoCalCopyFormat format)
+{
+  g_return_val_if_fail (time != NULL, NULL);
+
+  switch (format)
+    {
+    case SHOPNO_CAL_COPY_ISO_DATE:
+      return g_date_time_format (time, "%Y-%m-%d");
+
+    case SHOPNO_CAL_COPY_LOCAL_DATE:
+      return shopno_cal_format_local_date (time);
+
+    case SHOPNO_CAL_COPY_LONG_DATE:
+      /* The same format as the date in the flyout header */
+      return g_date_time_format (time, _("%A, %-d %B %Y"));
+
+    case SHOPNO_CAL_COPY_DATE_TIME:
+      return g_date_time_format (time, "%Y-%m-%d %H:%M");
+
+    case SHOPNO_CAL_COPY_UNIX_TIME:
+      return g_strdup_printf ("%" G_GINT64_FORMAT, g_date_time_to_unix (time));
+
+    default:
+      g_return_val_if_reached (NULL);
+    }
 }

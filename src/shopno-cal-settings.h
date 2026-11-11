@@ -70,6 +70,7 @@ ShopnoCalWeekend   shopno_cal_settings_get_weekend       (ShopnoCalSettings *set
 gboolean           shopno_cal_settings_get_week_numbers  (ShopnoCalSettings *settings);
 gboolean           shopno_cal_settings_get_day_details   (ShopnoCalSettings *settings);
 gboolean           shopno_cal_settings_get_show_tooltip  (ShopnoCalSettings *settings);
+gboolean           shopno_cal_settings_get_copy_button   (ShopnoCalSettings *settings);
 
 G_END_DECLS
 

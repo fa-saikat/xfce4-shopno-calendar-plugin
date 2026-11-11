@@ -39,6 +39,24 @@ guint  shopno_cal_format_interval (const gchar    *format);
 gchar *shopno_cal_format_time     (GDateTime      *time,
                                    const gchar    *format);
 
+/* What the copy menu of the flyout offers, in its order */
+typedef enum
+{
+  SHOPNO_CAL_COPY_ISO_DATE,  /* 2026-11-10 */
+  SHOPNO_CAL_COPY_LOCAL_DATE, /* 10/11/2026, from the locale */
+  SHOPNO_CAL_COPY_LONG_DATE, /* Tuesday, 10 November 2026 */
+  SHOPNO_CAL_COPY_DATE_TIME, /* 2026-11-10 14:05 */
+  SHOPNO_CAL_COPY_UNIX_TIME, /* 1794319509 */
+  SHOPNO_CAL_COPY_N_FORMATS
+} ShopnoCalCopyFormat;
+
+/* The name of a copy format in the menu, translated */
+const gchar *shopno_cal_format_copy_name (ShopnoCalCopyFormat format);
+
+/* The time in a copy format */
+gchar       *shopno_cal_format_copy      (GDateTime          *time,
+                                          ShopnoCalCopyFormat format);
+
 G_END_DECLS
 
 #endif /* !__SHOPNO_CAL_FORMAT_H__ */

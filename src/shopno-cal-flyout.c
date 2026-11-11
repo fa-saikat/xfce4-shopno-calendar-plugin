@@ -18,6 +18,7 @@
 
 #include "shopno-cal-details.h"
 #include "shopno-cal-flyout.h"
+#include "shopno-cal-format.h"
 #include "shopno-cal-month.h"
 
 /* The pointer is often still grabbed by the panel button when the flyout
@@ -31,6 +32,9 @@
 #define MAX_YEAR 9988
 
 #define CELL_INDEX_KEY "shopno-cal-cell-index"
+
+/* How long the footer says what was copied */
+#define STATUS_TIMEOUT 2500
 
 typedef enum
 {
@@ -75,6 +79,11 @@ struct _ShopnoCalFlyout
   GtkWidget         *day_facts;
   GtkWidget         *range_title;
   GtkWidget         *range_facts;
+  GtkWidget         *footer;
+  GtkWidget         *status_label;
+  GtkWidget         *copy_button;
+  GtkWidget         *copy_values[SHOPNO_CAL_COPY_N_FORMATS];
+  guint              status_timeout_id;
 
   /* The view, the month or year it shows, and the selected day, with the
    * other end of a range when a second day is shift-clicked. Today is kept
@@ -816,6 +825,105 @@ shopno_cal_flyout_week_settings_changed (ShopnoCalFlyout *self)
 
 
 
+/* Footer */
+
+static void
+shopno_cal_flyout_update_footer (ShopnoCalFlyout *self)
+{
+  gboolean copy = shopno_cal_settings_get_copy_button (self->settings);
+
+  gtk_widget_set_visible (self->copy_button, copy);
+  gtk_widget_set_visible (self->footer, copy);
+}
+
+
+
+static void
+shopno_cal_flyout_clear_status (ShopnoCalFlyout *self)
+{
+  g_clear_handle_id (&self->status_timeout_id, g_source_remove);
+  gtk_label_set_text (GTK_LABEL (self->status_label), NULL);
+}
+
+
+
+static gboolean
+shopno_cal_flyout_status_timeout (gpointer data)
+{
+  ShopnoCalFlyout *self = SHOPNO_CAL_FLYOUT (data);
+
+  self->status_timeout_id = 0;
+  shopno_cal_flyout_clear_status (self);
+
+  return G_SOURCE_REMOVE;
+}
+
+
+
+/* The values of the copy menu, kept current while it is open */
+static void
+shopno_cal_flyout_update_copy_values (ShopnoCalFlyout *self)
+{
+  GDateTime *now = shopno_cal_clock_get_now (self->clock);
+  GtkWidget *row;
+  gchar     *value;
+  gchar     *name;
+  guint      i;
+
+  for (i = 0; i < SHOPNO_CAL_COPY_N_FORMATS; i++)
+    {
+      value = shopno_cal_format_copy (now, i);
+      gtk_label_set_text (GTK_LABEL (self->copy_values[i]), value);
+
+      /* TRANSLATORS: a row of the copy menu for screen readers, such as
+       * "Copy ISO date, 2026-11-10" */
+      name = g_strdup_printf (_("Copy %s, %s"), shopno_cal_format_copy_name (i), value);
+      row = gtk_widget_get_ancestor (self->copy_values[i], GTK_TYPE_BUTTON);
+      shopno_cal_flyout_set_accessible_name (row, name);
+      g_free (name);
+      g_free (value);
+    }
+
+  g_date_time_unref (now);
+}
+
+
+
+static gboolean
+shopno_cal_flyout_copy_menu_open (ShopnoCalFlyout *self)
+{
+  GtkPopover *popover = gtk_menu_button_get_popover (GTK_MENU_BUTTON (self->copy_button));
+
+  return popover != NULL && gtk_widget_get_visible (GTK_WIDGET (popover));
+}
+
+
+
+static void
+shopno_cal_flyout_copy_clicked (GtkWidget       *row,
+                                ShopnoCalFlyout *self)
+{
+  guint        index = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (row), CELL_INDEX_KEY));
+  const gchar *value = gtk_label_get_text (GTK_LABEL (self->copy_values[index]));
+  gchar       *text;
+
+  /* The panel keeps running, so the text stays on the clipboard after the
+   * flyout closes */
+  gtk_clipboard_set_text (gtk_widget_get_clipboard (row, GDK_SELECTION_CLIPBOARD), value, -1);
+
+  gtk_popover_popdown (gtk_menu_button_get_popover (GTK_MENU_BUTTON (self->copy_button)));
+
+  /* TRANSLATORS: in the flyout footer after copying, such as
+   * "Copied 2026-11-10" */
+  text = g_strdup_printf (_("Copied %s"), value);
+  g_clear_handle_id (&self->status_timeout_id, g_source_remove);
+  gtk_label_set_text (GTK_LABEL (self->status_label), text);
+  self->status_timeout_id = g_timeout_add (STATUS_TIMEOUT, shopno_cal_flyout_status_timeout, self);
+  g_free (text);
+}
+
+
+
 static void
 shopno_cal_flyout_day_details_changed (ShopnoCalFlyout *self)
 {
@@ -838,7 +946,11 @@ static void
 shopno_cal_flyout_tick (ShopnoCalFlyout *self)
 {
   if (gtk_widget_get_visible (GTK_WIDGET (self)))
-    shopno_cal_flyout_update (self);
+    {
+      shopno_cal_flyout_update (self);
+      if (shopno_cal_flyout_copy_menu_open (self))
+        shopno_cal_flyout_update_copy_values (self);
+    }
 }
 
 
@@ -1109,7 +1221,13 @@ shopno_cal_flyout_map_event (GtkWidget   *widget,
 static void
 shopno_cal_flyout_hide (GtkWidget *widget)
 {
-  shopno_cal_flyout_ungrab (SHOPNO_CAL_FLYOUT (widget));
+  ShopnoCalFlyout *self = SHOPNO_CAL_FLYOUT (widget);
+
+  shopno_cal_flyout_ungrab (self);
+
+  /* Open the next time without the menu or an old message */
+  gtk_popover_popdown (gtk_menu_button_get_popover (GTK_MENU_BUTTON (self->copy_button)));
+  shopno_cal_flyout_clear_status (self);
 
   GTK_WIDGET_CLASS (shopno_cal_flyout_parent_class)->hide (widget);
 }
@@ -1151,6 +1269,10 @@ shopno_cal_flyout_key_press_event (GtkWidget   *widget,
   GtkWidget       *focus = gtk_window_get_focus (GTK_WINDOW (widget));
   gboolean         on_day = focus != NULL && gtk_widget_get_parent (focus) == self->day_grid;
   GdkModifierType  modifiers = event->state & (GDK_CONTROL_MASK | GDK_MOD1_MASK | GDK_SHIFT_MASK);
+
+  /* The copy menu has the keyboard; Escape closes only the menu */
+  if (shopno_cal_flyout_copy_menu_open (self))
+    return GTK_WIDGET_CLASS (shopno_cal_flyout_parent_class)->key_press_event (widget, event);
 
   /* Shift with the keys that move between days moves the end of a range */
   if (modifiers == GDK_SHIFT_MASK && on_day
@@ -1265,6 +1387,9 @@ shopno_cal_flyout_constructed (GObject *object)
   g_signal_connect_swapped (self->settings, "notify::day-details",
                             G_CALLBACK (shopno_cal_flyout_day_details_changed), self);
   shopno_cal_flyout_day_details_changed (self);
+  g_signal_connect_swapped (self->settings, "notify::copy-button",
+                            G_CALLBACK (shopno_cal_flyout_update_footer), self);
+  shopno_cal_flyout_update_footer (self);
   g_signal_connect_swapped (self->clock, "tick",
                             G_CALLBACK (shopno_cal_flyout_tick), self);
 
@@ -1279,6 +1404,7 @@ shopno_cal_flyout_dispose (GObject *object)
   ShopnoCalFlyout *self = SHOPNO_CAL_FLYOUT (object);
 
   shopno_cal_flyout_ungrab (self);
+  g_clear_handle_id (&self->status_timeout_id, g_source_remove);
 
   if (self->settings != NULL)
     {
@@ -1401,6 +1527,52 @@ shopno_cal_flyout_details_label_new (const gchar *style_class)
   gtk_label_set_max_width_chars (GTK_LABEL (label), 1);
 
   return label;
+}
+
+
+
+/* The copy menu: a row per format, with its name and the value to copy */
+static GtkWidget *
+shopno_cal_flyout_copy_menu_new (ShopnoCalFlyout *self)
+{
+  GtkWidget *popover = gtk_popover_new (self->copy_button);
+  GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+  GtkWidget *row;
+  GtkWidget *row_box;
+  GtkWidget *label;
+  guint      i;
+
+  gtk_style_context_add_class (gtk_widget_get_style_context (popover), "shopno-cal-copy-menu");
+  gtk_popover_set_position (GTK_POPOVER (popover), GTK_POS_TOP);
+  gtk_container_add (GTK_CONTAINER (popover), box);
+
+  for (i = 0; i < SHOPNO_CAL_COPY_N_FORMATS; i++)
+    {
+      row = shopno_cal_flyout_button_new ("shopno-cal-copy-item");
+      gtk_container_remove (GTK_CONTAINER (row), gtk_bin_get_child (GTK_BIN (row)));
+      g_object_set_data (G_OBJECT (row), CELL_INDEX_KEY, GUINT_TO_POINTER (i));
+      g_signal_connect (row, "clicked", G_CALLBACK (shopno_cal_flyout_copy_clicked), self);
+      gtk_box_pack_start (GTK_BOX (box), row, FALSE, FALSE, 0);
+
+      row_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 12);
+      gtk_container_add (GTK_CONTAINER (row), row_box);
+
+      label = shopno_cal_flyout_label_new ("shopno-cal-copy-name");
+      gtk_label_set_text (GTK_LABEL (label), shopno_cal_format_copy_name (i));
+      gtk_label_set_xalign (GTK_LABEL (label), 0.0);
+      gtk_box_pack_start (GTK_BOX (row_box), label, TRUE, TRUE, 0);
+
+      self->copy_values[i] = shopno_cal_flyout_label_new ("shopno-cal-copy-value");
+      gtk_label_set_xalign (GTK_LABEL (self->copy_values[i]), 1.0);
+      gtk_box_pack_end (GTK_BOX (row_box), self->copy_values[i], FALSE, FALSE, 0);
+    }
+
+  /* Current values each time it opens */
+  g_signal_connect_swapped (popover, "show",
+                            G_CALLBACK (shopno_cal_flyout_update_copy_values), self);
+  gtk_widget_show_all (box);
+
+  return popover;
 }
 
 
@@ -1612,6 +1784,28 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
   page = shopno_cal_flyout_details_page_new (&self->range_title, &self->range_facts,
                                              _("Click any date to clear."));
   gtk_stack_add_named (GTK_STACK (self->details_stack), page, "range");
+
+  /* Footer: a status on the left, and the copy button */
+  self->footer = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+  gtk_style_context_add_class (gtk_widget_get_style_context (self->footer), "shopno-cal-footer");
+  gtk_box_pack_end (GTK_BOX (self->frame), self->footer, FALSE, FALSE, 0);
+
+  self->status_label = shopno_cal_flyout_label_new ("shopno-cal-footer-status");
+  gtk_label_set_xalign (GTK_LABEL (self->status_label), 0.0);
+  gtk_label_set_ellipsize (GTK_LABEL (self->status_label), PANGO_ELLIPSIZE_END);
+  gtk_box_pack_start (GTK_BOX (self->footer), self->status_label, TRUE, TRUE, 0);
+
+  self->copy_button = gtk_menu_button_new ();
+  gtk_button_set_relief (GTK_BUTTON (self->copy_button), GTK_RELIEF_NONE);
+  gtk_button_set_image (GTK_BUTTON (self->copy_button),
+                        gtk_image_new_from_icon_name ("edit-copy-symbolic", GTK_ICON_SIZE_BUTTON));
+  gtk_style_context_add_class (gtk_widget_get_style_context (self->copy_button), "shopno-cal-arrow");
+  gtk_widget_set_valign (self->copy_button, GTK_ALIGN_CENTER);
+  gtk_widget_set_tooltip_text (self->copy_button, _("Copy date or time"));
+  shopno_cal_flyout_set_accessible_name (self->copy_button, _("Copy date or time"));
+  gtk_menu_button_set_popover (GTK_MENU_BUTTON (self->copy_button),
+                               shopno_cal_flyout_copy_menu_new (self));
+  gtk_box_pack_end (GTK_BOX (self->footer), self->copy_button, FALSE, FALSE, 0);
 
   gtk_widget_show_all (self->frame);
 }

@@ -150,6 +150,37 @@ test_clock_tick (void)
 
 
 
+static void
+test_copy (void)
+{
+  static const gchar *expected[] =
+  {
+    "2026-11-10",
+    /* The C locale's date is %m/%d/%y; the year is given in full */
+    "11/10/2026",
+    "Tuesday, 10 November 2026",
+    "2026-11-10 07:05",
+    "1794294309",
+  };
+  GDateTime *time = sample_time ();
+  gchar     *text;
+
+  G_STATIC_ASSERT (G_N_ELEMENTS (expected) == SHOPNO_CAL_COPY_N_FORMATS);
+
+  for (guint i = 0; i < SHOPNO_CAL_COPY_N_FORMATS; i++)
+    {
+      text = shopno_cal_format_copy (time, i);
+      g_assert_cmpstr (text, ==, expected[i]);
+      g_free (text);
+
+      g_assert_nonnull (shopno_cal_format_copy_name (i));
+    }
+
+  g_date_time_unref (time);
+}
+
+
+
 int
 main (int    argc,
       char **argv)
@@ -160,6 +191,7 @@ main (int    argc,
   g_test_add_func ("/format/layouts", test_layouts);
   g_test_add_func ("/format/custom", test_custom);
   g_test_add_func ("/format/interval", test_interval);
+  g_test_add_func ("/format/copy", test_copy);
   g_test_add_func ("/clock/tick", test_clock_tick);
 
   return g_test_run ();

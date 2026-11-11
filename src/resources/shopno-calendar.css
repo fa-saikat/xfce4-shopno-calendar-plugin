@@ -89,7 +89,8 @@ button.shopno-cal-date:hover label {
 button.shopno-cal-title,
 button.shopno-cal-arrow,
 button.shopno-cal-day,
-button.shopno-cal-cell {
+button.shopno-cal-cell,
+button.shopno-cal-copy-item {
   min-width: 0;
   min-height: 0;
   padding: 0;
@@ -105,14 +106,17 @@ button.shopno-cal-cell {
 button.shopno-cal-title:hover,
 button.shopno-cal-arrow:hover,
 button.shopno-cal-day:hover,
-button.shopno-cal-cell:hover {
+button.shopno-cal-cell:hover,
+button.shopno-cal-copy-item:hover {
   background-color: alpha(@theme_fg_color, 0.08);
 }
 
 button.shopno-cal-title:active,
 button.shopno-cal-arrow:active,
+button.shopno-cal-arrow:checked,
 button.shopno-cal-day:active,
-button.shopno-cal-cell:active {
+button.shopno-cal-cell:active,
+button.shopno-cal-copy-item:active {
   background-color: alpha(@theme_fg_color, 0.14);
 }
 
@@ -240,4 +244,49 @@ button.shopno-cal-cell.today.selected {
 .shopno-cal-details-hint {
   margin-top: 6px;
   font-size: smaller;
+}
+
+/* Footer: a status on the left, and buttons such as copy on the right,
+ * on a slightly darker strip */
+
+.shopno-cal-footer {
+  min-height: 48px;
+  padding: 0 8px 0 16px;
+  border-top: 1px solid alpha(@theme_fg_color, 0.08);
+  border-radius: 0 0 3px 3px;
+  background-color: alpha(@theme_fg_color, 0.04);
+}
+
+window:not(.composited) .shopno-cal-footer {
+  border-radius: 0;
+}
+
+.shopno-cal-footer button.shopno-cal-arrow {
+  min-height: 32px;
+}
+
+.shopno-cal-footer-status {
+  font-size: 90%;
+  color: alpha(@theme_fg_color, 0.55);
+}
+
+/* The copy menu: the name of each format on the left, its value on the
+ * right */
+
+popover.shopno-cal-copy-menu {
+  padding: 4px;
+}
+
+button.shopno-cal-copy-item {
+  min-width: 240px;
+  padding: 7px 10px;
+}
+
+.shopno-cal-copy-name {
+  font-size: smaller;
+  color: alpha(@theme_fg_color, 0.55);
+}
+
+.shopno-cal-copy-value {
+  font-feature-settings: "tnum";
 }

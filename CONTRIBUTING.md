@@ -37,8 +37,8 @@ meson compile -C build
 
 `--no-grab` stops the flyout from capturing all keyboard and mouse input,
 `--12h` or `--24h` picks the time format, and `--week-start`,
-`--weekend`, `--week-numbers` and `--no-day-details` set the calendar
-options (`--help` lists the values). Settings are not saved.
+`--weekend`, `--week-numbers`, `--no-day-details` and `--no-copy` set the
+calendar options (`--help` lists the values). Settings are not saved.
 
 ## Code style
 
