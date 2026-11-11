@@ -179,6 +179,30 @@ test_describe (void)
 
 
 
+static void
+test_format (void)
+{
+  gchar *text;
+
+  text = shopno_cal_timer_format (0);
+  g_assert_cmpstr (text, ==, "00:00");
+  g_free (text);
+
+  text = shopno_cal_timer_format (25 * 60);
+  g_assert_cmpstr (text, ==, "25:00");
+  g_free (text);
+
+  text = shopno_cal_timer_format (59 * 60 + 59);
+  g_assert_cmpstr (text, ==, "59:59");
+  g_free (text);
+
+  text = shopno_cal_timer_format (3600 + 5 * 60 + 7);
+  g_assert_cmpstr (text, ==, "1:05:07");
+  g_free (text);
+}
+
+
+
 /*
  * Notification
  */
@@ -306,6 +330,7 @@ main (int    argc,
   g_test_add_func ("/timer/run-pause-resume", test_run_pause_resume);
   g_test_add_func ("/timer/reset", test_reset);
   g_test_add_func ("/timer/describe", test_describe);
+  g_test_add_func ("/timer/format", test_format);
 
   /* As in test-sync: GTestDBus needs dbus-daemon */
   dbus_daemon = g_find_program_in_path ("dbus-daemon");

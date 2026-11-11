@@ -264,6 +264,17 @@ shopno_cal_timer_describe (guint seconds)
 
 
 
+gchar *
+shopno_cal_timer_format (guint seconds)
+{
+  if (seconds >= 3600)
+    return g_strdup_printf ("%u:%02u:%02u", seconds / 3600, seconds / 60 % 60, seconds % 60);
+
+  return g_strdup_printf ("%02u:%02u", seconds / 60, seconds % 60);
+}
+
+
+
 static void
 shopno_cal_timer_notified (GObject      *source,
                            GAsyncResult *result,

@@ -62,6 +62,7 @@ main (int    argc,
 {
   ShopnoCalSettings *settings;
   ShopnoCalClock    *clock;
+  ShopnoCalTimer    *timer;
   GtkWidget         *flyout;
   GError            *error = NULL;
 
@@ -89,7 +90,8 @@ main (int    argc,
   clock = shopno_cal_clock_new ();
   shopno_cal_clock_set_interval (clock, SHOPNO_CAL_CLOCK_SECOND);
 
-  flyout = shopno_cal_flyout_new (settings, clock);
+  timer = shopno_cal_timer_new ();
+  flyout = shopno_cal_flyout_new (settings, clock, timer);
   shopno_cal_flyout_set_grab_input (SHOPNO_CAL_FLYOUT (flyout), !opt_no_grab);
   g_signal_connect (flyout, "hide", G_CALLBACK (gtk_main_quit), NULL);
 
@@ -97,6 +99,7 @@ main (int    argc,
   gtk_main ();
 
   gtk_widget_destroy (flyout);
+  g_object_unref (timer);
   g_object_unref (clock);
   g_object_unref (settings);
 

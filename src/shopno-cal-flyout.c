@@ -54,6 +54,7 @@ enum
   PROP_0,
   PROP_SETTINGS,
   PROP_CLOCK,
+  PROP_TIMER,
   N_PROPERTIES
 };
 
@@ -851,12 +852,13 @@ shopno_cal_flyout_update_timer (ShopnoCalFlyout *self)
   guint                remaining = shopno_cal_timer_get_remaining (self->timer);
   guint                duration = shopno_cal_timer_get_duration (self->timer);
   const gchar         *start;
-  gchar                text[16];
+  gchar               *text;
   gchar               *name;
   guint                i;
 
-  g_snprintf (text, sizeof (text), "%02u:%02u", remaining / 60, remaining % 60);
+  text = shopno_cal_timer_format (remaining);
   gtk_label_set_text (GTK_LABEL (self->timer_readout), text);
+  g_free (text);
 
   /* TRANSLATORS: the timer's readout for screen readers */
   name = g_strdup_printf (ngettext ("%u second left", "%u seconds left", remaining), remaining);
@@ -892,18 +894,15 @@ shopno_cal_flyout_update_timer (ShopnoCalFlyout *self)
 
 
 
-/* A ring of the time left, emptying clockwise from the top, over a faint
- * full ring */
-static gboolean
-shopno_cal_flyout_draw_timer_ring (GtkWidget       *widget,
-                                   cairo_t         *cr,
-                                   ShopnoCalFlyout *self)
+void
+shopno_cal_flyout_draw_ring (GtkWidget *widget,
+                             cairo_t   *cr,
+                             gdouble    fraction,
+                             gdouble    line)
 {
   GtkStyleContext *context = gtk_widget_get_style_context (widget);
-  gdouble          fraction = shopno_cal_timer_get_fraction (self->timer);
   gdouble          size = MIN (gtk_widget_get_allocated_width (widget),
                                gtk_widget_get_allocated_height (widget));
-  gdouble          line = 4.0;
   gdouble          radius = (size - line) / 2.0;
   GdkRGBA          color;
   GdkRGBA          accent;
@@ -928,6 +927,16 @@ shopno_cal_flyout_draw_timer_ring (GtkWidget       *widget,
       cairo_arc (cr, 0, 0, radius, -G_PI_2, -G_PI_2 + 2 * G_PI * fraction);
       cairo_stroke (cr);
     }
+}
+
+
+
+static gboolean
+shopno_cal_flyout_draw_timer_ring (GtkWidget       *widget,
+                                   cairo_t         *cr,
+                                   ShopnoCalFlyout *self)
+{
+  shopno_cal_flyout_draw_ring (widget, cr, shopno_cal_timer_get_fraction (self->timer), 4.0);
 
   return FALSE;
 }
@@ -1646,6 +1655,10 @@ shopno_cal_flyout_set_property (GObject      *object,
       self->clock = g_value_dup_object (value);
       break;
 
+    case PROP_TIMER:
+      self->timer = g_value_dup_object (value);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -1673,6 +1686,10 @@ shopno_cal_flyout_constructed (GObject *object)
   g_signal_connect_swapped (self->settings, "notify::day-details",
                             G_CALLBACK (shopno_cal_flyout_day_details_changed), self);
   shopno_cal_flyout_day_details_changed (self);
+  g_signal_connect_swapped (self->timer, "changed",
+                            G_CALLBACK (shopno_cal_flyout_update_timer), self);
+  g_signal_connect_swapped (self->timer, "finished",
+                            G_CALLBACK (shopno_cal_flyout_timer_finished), self);
   g_signal_connect_swapped (self->settings, "notify::timer",
                             G_CALLBACK (shopno_cal_flyout_timer_setting_changed), self);
   shopno_cal_flyout_timer_setting_changed (self);
@@ -1752,6 +1769,9 @@ shopno_cal_flyout_class_init (ShopnoCalFlyoutClass *klass)
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
   properties[PROP_CLOCK] =
     g_param_spec_object ("clock", NULL, NULL, SHOPNO_TYPE_CAL_CLOCK,
+                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
+  properties[PROP_TIMER] =
+    g_param_spec_object ("timer", NULL, NULL, SHOPNO_TYPE_CAL_TIMER,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
   g_object_class_install_properties (gobject_class, N_PROPERTIES, properties);
 }
@@ -2130,10 +2150,6 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
 
   /* Timer: the ring and the time left, with the start and reset buttons,
    * over a row of the presets */
-  self->timer = shopno_cal_timer_new ();
-  g_signal_connect_swapped (self->timer, "changed", G_CALLBACK (shopno_cal_flyout_update_timer), self);
-  g_signal_connect_swapped (self->timer, "finished", G_CALLBACK (shopno_cal_flyout_timer_finished), self);
-
   self->timer_section = gtk_box_new (GTK_ORIENTATION_VERTICAL, 10);
   gtk_style_context_add_class (gtk_widget_get_style_context (self->timer_section), "shopno-cal-timer");
   gtk_box_pack_start (GTK_BOX (self->frame), self->timer_section, FALSE, FALSE, 0);
@@ -2228,12 +2244,14 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
 
 GtkWidget *
 shopno_cal_flyout_new (ShopnoCalSettings *settings,
-                       ShopnoCalClock    *clock)
+                       ShopnoCalClock    *clock,
+                       ShopnoCalTimer    *timer)
 {
   g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), NULL);
   g_return_val_if_fail (SHOPNO_IS_CAL_CLOCK (clock), NULL);
+  g_return_val_if_fail (SHOPNO_IS_CAL_TIMER (timer), NULL);
 
-  return g_object_new (SHOPNO_TYPE_CAL_FLYOUT, "settings", settings, "clock", clock, NULL);
+  return g_object_new (SHOPNO_TYPE_CAL_FLYOUT, "settings", settings, "clock", clock, "timer", timer, NULL);
 }
 
 

@@ -69,6 +69,9 @@ void                 shopno_cal_timer_notify        (GDBusConnection *connection
 /* The notification's text for a duration, in seconds */
 gchar               *shopno_cal_timer_describe      (guint            seconds);
 
+/* A readout of a time in seconds: 05:00, or 1:05:00 from an hour */
+gchar               *shopno_cal_timer_format        (guint            seconds);
+
 G_END_DECLS
 
 #endif /* !__SHOPNO_CAL_TIMER_H__ */
