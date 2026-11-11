@@ -59,6 +59,9 @@ typedef enum
 /* The system's Date & Time settings, from gnome-system-tools or MATE */
 #define SHOPNO_CAL_DEFAULT_TIME_SETTINGS_COMMAND "time-admin"
 
+/* The timer's length, in minutes */
+#define SHOPNO_CAL_TIMER_MINUTES_MAX 240
+
 #define SHOPNO_TYPE_CAL_SETTINGS (shopno_cal_settings_get_type ())
 G_DECLARE_FINAL_TYPE (ShopnoCalSettings, shopno_cal_settings, SHOPNO, CAL_SETTINGS, GObject)
 
@@ -76,6 +79,7 @@ gboolean           shopno_cal_settings_get_show_tooltip  (ShopnoCalSettings *set
 gboolean           shopno_cal_settings_get_copy_button   (ShopnoCalSettings *settings);
 const gchar       *shopno_cal_settings_get_time_settings_command (ShopnoCalSettings *settings);
 gboolean           shopno_cal_settings_get_timer         (ShopnoCalSettings *settings);
+guint              shopno_cal_settings_get_timer_minutes (ShopnoCalSettings *settings);
 
 G_END_DECLS
 

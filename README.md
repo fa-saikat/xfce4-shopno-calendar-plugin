@@ -49,10 +49,12 @@ an ISO date, your locale's date, the long date, the date and time, or
 Unix time. The footer also shows whether the clock is synced
 automatically, as systemd-timedated reports it, with a warning when it
 is not, and has a button for the system's Date & Time settings
-(`time-admin`, or a command of your choice). A timer of 1, 5, 15 or 25
-minutes, as in Windows' Focus, counts down with a ring, keeps running
-when the flyout closes, with the time left next to the panel clock, and
-ends with a desktop notification. The arrows or
+(`time-admin`, or a command of your choice). A timer, as in Windows' Focus,
+counts down with a ring, keeps running when the flyout closes, with the
+time left next to the panel clock, and ends with a desktop notification.
+Pick 1, 5, 15 or 25 minutes, or any length up to 4 hours with the mouse
+wheel or the Up and Down keys over its time; it is remembered for next
+time. The arrows or
 the mouse wheel change the month; click the title to pick a month of the
 year, and again for a year of the decade. From the keyboard, the arrow
 keys move between days, Page Up and Page Down change the month, and Home
