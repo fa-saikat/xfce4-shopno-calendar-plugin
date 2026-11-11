@@ -21,7 +21,7 @@
 
 
 
-static gchar *
+gchar *
 shopno_cal_details_format (const GDate *date,
                            const gchar *format)
 {
@@ -33,7 +33,7 @@ shopno_cal_details_format (const GDate *date,
   text = g_date_time_format (time, format);
   g_date_time_unref (time);
 
-  return text;
+  return text != NULL ? text : g_strdup ("");
 }
 
 

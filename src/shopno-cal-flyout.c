@@ -202,6 +202,28 @@ shopno_cal_flyout_update_blur (ShopnoCalFlyout *self)
 
 
 
+/* Setting the same text again still relays out the label, and rebuilds a
+ * button's child: skip that on every tick */
+static void
+shopno_cal_flyout_set_text (GtkWidget   *label,
+                            const gchar *text)
+{
+  if (g_strcmp0 (gtk_label_get_text (GTK_LABEL (label)), text) != 0)
+    gtk_label_set_text (GTK_LABEL (label), text);
+}
+
+
+
+static void
+shopno_cal_flyout_set_button_label (GtkWidget   *button,
+                                    const gchar *text)
+{
+  if (g_strcmp0 (gtk_button_get_label (GTK_BUTTON (button)), text) != 0)
+    gtk_button_set_label (GTK_BUTTON (button), text);
+}
+
+
+
 static void
 shopno_cal_flyout_set_class (GtkWidget   *widget,
                              const gchar *name,
@@ -213,23 +235,6 @@ shopno_cal_flyout_set_class (GtkWidget   *widget,
     gtk_style_context_add_class (context, name);
   else
     gtk_style_context_remove_class (context, name);
-}
-
-
-
-static gchar *
-shopno_cal_flyout_format_date (const GDate *date,
-                               const gchar *format)
-{
-  GDateTime *time;
-  gchar     *text;
-
-  time = g_date_time_new_utc (g_date_get_year (date), g_date_get_month (date),
-                              g_date_get_day (date), 0, 0, 0);
-  text = g_date_time_format (time, format);
-  g_date_time_unref (time);
-
-  return text;
 }
 
 
@@ -246,19 +251,19 @@ shopno_cal_flyout_update_header (ShopnoCalFlyout *self,
   gchar    *text;
 
   text = g_date_time_format (now, use_24h ? "%H:%M:%S" : "%-l:%M:%S");
-  gtk_label_set_text (GTK_LABEL (self->time_label), text);
+  shopno_cal_flyout_set_text (self->time_label, text);
   g_free (text);
 
   /* %p is empty in locales without AM and PM */
   text = use_24h ? g_strdup ("") : g_date_time_format (now, "%p");
-  gtk_label_set_text (GTK_LABEL (self->period_label), text);
-  gtk_widget_set_visible (self->period_label, *text != '\0');
+  shopno_cal_flyout_set_text (self->period_label, text);
+  gtk_widget_set_visible (self->period_label, text != NULL && *text != '\0');
   g_free (text);
 
   /* TRANSLATORS: the date in the flyout header, see
    * https://docs.gtk.org/glib/method.DateTime.format.html */
   text = g_date_time_format (now, _("%A, %-d %B %Y"));
-  gtk_button_set_label (GTK_BUTTON (self->date_button), text);
+  shopno_cal_flyout_set_button_label (self->date_button, text);
   g_free (text);
 }
 
@@ -324,7 +329,7 @@ shopno_cal_flyout_set_cell (GtkWidget   *button,
                             gboolean     today,
                             gboolean     selected)
 {
-  gtk_button_set_label (GTK_BUTTON (button), text);
+  shopno_cal_flyout_set_button_label (button, text);
   shopno_cal_flyout_set_accessible_name (button, accessible_name);
 
   shopno_cal_flyout_set_class (button, "outside", outside);
@@ -408,7 +413,7 @@ shopno_cal_flyout_refresh_days (ShopnoCalFlyout *self)
       shopno_cal_flyout_day_date (self, i, &date);
 
       g_snprintf (number, sizeof (number), "%u", g_date_get_day (&date));
-      name = shopno_cal_flyout_format_date (&date, _("%A, %-d %B %Y"));
+      name = shopno_cal_details_format (&date, _("%A, %-d %B %Y"));
       shopno_cal_flyout_set_cell (self->day_buttons[i], number, name,
                                   g_date_get_month (&date) != self->month,
                                   g_date_compare (&date, &self->today) == 0,
@@ -460,8 +465,8 @@ shopno_cal_flyout_refresh_months (ShopnoCalFlyout *self)
   for (i = 0; i < G_N_ELEMENTS (self->month_buttons); i++)
     {
       g_date_set_dmy (&date, 1, i + 1, self->year);
-      text = shopno_cal_flyout_format_date (&date, "%b");
-      name = shopno_cal_flyout_format_date (&date, _("%B %Y"));
+      text = shopno_cal_details_format (&date, "%b");
+      name = shopno_cal_details_format (&date, _("%B %Y"));
       shopno_cal_flyout_set_cell (self->month_buttons[i], text, name, FALSE,
                                   self->year == g_date_get_year (&self->today)
                                   && i + 1 == g_date_get_month (&self->today),
@@ -631,7 +636,7 @@ shopno_cal_flyout_refresh (ShopnoCalFlyout *self)
       shopno_cal_flyout_refresh_days (self);
       /* TRANSLATORS: the month above the calendar grid, see
        * https://docs.gtk.org/glib/method.DateTime.format.html */
-      text = shopno_cal_flyout_format_date (&first, _("%B %Y"));
+      text = shopno_cal_details_format (&first, _("%B %Y"));
       previous = _("Previous month");
       next = _("Next month");
       title_tip = _("Choose a month");
@@ -640,7 +645,7 @@ shopno_cal_flyout_refresh (ShopnoCalFlyout *self)
 
     case VIEW_MONTHS:
       shopno_cal_flyout_refresh_months (self);
-      text = shopno_cal_flyout_format_date (&first, "%Y");
+      text = shopno_cal_details_format (&first, "%Y");
       previous = _("Previous year");
       next = _("Next year");
       title_tip = _("Choose a year");
@@ -920,7 +925,7 @@ shopno_cal_flyout_update_timer (ShopnoCalFlyout *self)
   guint                i;
 
   text = shopno_cal_timer_format (remaining);
-  gtk_label_set_text (GTK_LABEL (self->timer_readout), text);
+  shopno_cal_flyout_set_text (self->timer_readout, text);
   g_free (text);
 
   /* TRANSLATORS: the timer's readout for screen readers */
@@ -950,7 +955,7 @@ shopno_cal_flyout_update_timer (ShopnoCalFlyout *self)
       break;
     }
 
-  gtk_button_set_label (GTK_BUTTON (self->timer_start), start);
+  shopno_cal_flyout_set_button_label (self->timer_start, start);
   gtk_widget_set_visible (self->timer_reset, state != SHOPNO_CAL_TIMER_IDLE);
 }
 
@@ -1232,7 +1237,7 @@ shopno_cal_flyout_update_copy_values (ShopnoCalFlyout *self)
   for (i = 0; i < SHOPNO_CAL_COPY_N_FORMATS; i++)
     {
       value = shopno_cal_format_copy (now, i);
-      gtk_label_set_text (GTK_LABEL (self->copy_values[i]), value);
+      shopno_cal_flyout_set_text (self->copy_values[i], value);
 
       /* TRANSLATORS: a row of the copy menu for screen readers, such as
        * "Copy ISO date, 2026-11-10" */

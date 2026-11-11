@@ -218,27 +218,37 @@ gchar *
 shopno_cal_format_copy (GDateTime          *time,
                         ShopnoCalCopyFormat format)
 {
+  gchar *text = NULL;
+
   g_return_val_if_fail (time != NULL, NULL);
 
   switch (format)
     {
     case SHOPNO_CAL_COPY_ISO_DATE:
-      return g_date_time_format (time, "%Y-%m-%d");
+      text = g_date_time_format (time, "%Y-%m-%d");
+      break;
 
     case SHOPNO_CAL_COPY_LOCAL_DATE:
-      return shopno_cal_format_local_date (time);
+      text = shopno_cal_format_local_date (time);
+      break;
 
     case SHOPNO_CAL_COPY_LONG_DATE:
       /* The same format as the date in the flyout header */
-      return g_date_time_format (time, _("%A, %-d %B %Y"));
+      text = g_date_time_format (time, _("%A, %-d %B %Y"));
+      break;
 
     case SHOPNO_CAL_COPY_DATE_TIME:
-      return g_date_time_format (time, "%Y-%m-%d %H:%M");
+      text = g_date_time_format (time, "%Y-%m-%d %H:%M");
+      break;
 
     case SHOPNO_CAL_COPY_UNIX_TIME:
-      return g_strdup_printf ("%" G_GINT64_FORMAT, g_date_time_to_unix (time));
+      text = g_strdup_printf ("%" G_GINT64_FORMAT, g_date_time_to_unix (time));
+      break;
 
     default:
       g_return_val_if_reached (NULL);
     }
+
+  /* A broken translation of the long date gives nothing */
+  return text != NULL ? text : g_strdup ("");
 }
