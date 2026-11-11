@@ -96,7 +96,6 @@ struct _ShopnoCalFlyout
   GtkWidget         *timer_start;
   GtkWidget         *timer_reset;
   GtkWidget         *footer;
-  GtkWidget         *status_dot;
   GtkWidget         *status_label;
   GtkWidget         *copy_button;
   GtkWidget         *time_settings_button;
@@ -1148,8 +1147,6 @@ shopno_cal_flyout_update_status (ShopnoCalFlyout *self)
     return;
 
   gtk_label_set_text (GTK_LABEL (self->status_label), text);
-  gtk_widget_set_visible (self->status_dot, text != NULL);
-  shopno_cal_flyout_set_class (self->status_dot, "warning", warning);
   shopno_cal_flyout_set_class (self->status_label, "warning", warning);
 }
 
@@ -1307,7 +1304,6 @@ shopno_cal_flyout_copy_clicked (GtkWidget       *row,
   text = g_strdup_printf (_("Copied %s"), value);
   g_clear_handle_id (&self->status_timeout_id, g_source_remove);
   gtk_label_set_text (GTK_LABEL (self->status_label), text);
-  gtk_widget_hide (self->status_dot);
   shopno_cal_flyout_set_class (self->status_label, "warning", FALSE);
   self->status_timeout_id = g_timeout_add (STATUS_TIMEOUT, shopno_cal_flyout_status_timeout, self);
   g_free (text);
@@ -1949,21 +1945,6 @@ shopno_cal_flyout_details_label_new (const gchar *style_class)
 
 
 
-/* The sync dot is all background: its color and roundness come from the
- * style */
-static gboolean
-shopno_cal_flyout_draw_dot (GtkWidget *widget,
-                            cairo_t   *cr)
-{
-  gtk_render_background (gtk_widget_get_style_context (widget), cr, 0, 0,
-                         gtk_widget_get_allocated_width (widget),
-                         gtk_widget_get_allocated_height (widget));
-
-  return FALSE;
-}
-
-
-
 /* The copy menu: a row per format, with its name and the value to copy */
 static GtkWidget *
 shopno_cal_flyout_copy_menu_new (ShopnoCalFlyout *self)
@@ -2301,17 +2282,6 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
   self->footer = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
   gtk_style_context_add_class (gtk_widget_get_style_context (self->footer), "shopno-cal-footer");
   gtk_box_pack_end (GTK_BOX (self->frame), self->footer, FALSE, FALSE, 0);
-
-  /* The sync state: a dot in the theme's success or warning color, and
-   * its text */
-  self->status_dot = gtk_drawing_area_new ();
-  gtk_style_context_add_class (gtk_widget_get_style_context (self->status_dot), "shopno-cal-sync-dot");
-  gtk_widget_set_size_request (self->status_dot, 8, 8);
-  gtk_widget_set_margin_end (self->status_dot, 4);
-  gtk_widget_set_valign (self->status_dot, GTK_ALIGN_CENTER);
-  g_signal_connect (self->status_dot, "draw", G_CALLBACK (shopno_cal_flyout_draw_dot), NULL);
-  gtk_widget_set_no_show_all (self->status_dot, TRUE);
-  gtk_box_pack_start (GTK_BOX (self->footer), self->status_dot, FALSE, FALSE, 0);
 
   self->status_label = shopno_cal_flyout_label_new ("shopno-cal-footer-status");
   gtk_label_set_xalign (GTK_LABEL (self->status_label), 0.0);

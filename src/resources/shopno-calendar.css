@@ -275,15 +275,6 @@ window:not(.composited) .shopno-cal-footer {
   color: @theme_fg_color;
 }
 
-.shopno-cal-sync-dot {
-  border-radius: 50%;
-  background-color: @success_color;
-}
-
-.shopno-cal-sync-dot.warning {
-  background-color: @warning_color;
-}
-
 /* The copy menu: the name of each format on the left, its value on the
  * right */
 
