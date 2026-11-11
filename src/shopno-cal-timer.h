@@ -60,11 +60,12 @@ void                 shopno_cal_timer_pause         (ShopnoCalTimer *timer);
 /* Stops the timer and sets it back to its whole duration */
 void                 shopno_cal_timer_reset         (ShopnoCalTimer *timer);
 
-/* Shows the desktop notification for a finished timer of a duration, in
- * seconds, through org.freedesktop.Notifications on a bus, or on the
- * session bus when connection is NULL */
-void                 shopno_cal_timer_notify        (GDBusConnection *connection,
-                                                     guint            seconds);
+/* Shows the desktop notification that the timer is up, through
+ * org.freedesktop.Notifications on a bus, or on the session bus when
+ * connection is NULL. Its Restart action starts the timer again; starting
+ * the timer any other way closes it. */
+void                 shopno_cal_timer_notify        (ShopnoCalTimer  *timer,
+                                                     GDBusConnection *connection);
 
 /* The notification's text for a duration, in seconds */
 gchar               *shopno_cal_timer_describe      (guint            seconds);

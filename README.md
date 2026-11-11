@@ -51,7 +51,8 @@ automatically, as systemd-timedated reports it, with a warning when it
 is not, and has a button for the system's Date & Time settings
 (`time-admin`, or a command of your choice). A timer, as in Windows' Focus,
 counts down with a ring, keeps running when the flyout closes, with the
-time left next to the panel clock, and ends with a desktop notification.
+time left next to the panel clock, and ends with a desktop notification
+that can restart it.
 Pick 1, 5, 15 or 25 minutes, or any length up to 4 hours with the mouse
 wheel or the Up and Down keys over its time; it is remembered for next
 time. The arrows or

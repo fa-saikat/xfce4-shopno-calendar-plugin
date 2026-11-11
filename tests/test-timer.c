@@ -221,8 +221,18 @@ static const gchar introspection[] =
   "      <arg type='i' direction='in'/>"
   "      <arg type='u' direction='out'/>"
   "    </method>"
+  "    <method name='CloseNotification'>"
+  "      <arg type='u' direction='in'/>"
+  "    </method>"
   "  </interface>"
   "</node>";
+
+/* What the fake server was asked */
+typedef struct
+{
+  GVariant *notify;
+  guint     closed;
+} Server;
 
 
 
@@ -236,15 +246,47 @@ method_call (GDBusConnection       *connection,
              GDBusMethodInvocation *invocation,
              gpointer               data)
 {
-  GVariant **received = data;
+  Server *server = data;
 
-  *received = g_variant_ref (parameters);
-  g_dbus_method_invocation_return_value (invocation, g_variant_new ("(u)", 1));
+  if (g_strcmp0 (method, "Notify") == 0)
+    {
+      g_clear_pointer (&server->notify, g_variant_unref);
+      server->notify = g_variant_ref (parameters);
+      g_dbus_method_invocation_return_value (invocation, g_variant_new ("(u)", 7));
+    }
+  else
+    {
+      g_variant_get (parameters, "(u)", &server->closed);
+      g_dbus_method_invocation_return_value (invocation, NULL);
+    }
 }
 
 
 
 static const GDBusInterfaceVTable vtable = { method_call, NULL, NULL, { 0 } };
+
+
+
+/* Runs the main loop until a condition, for up to five seconds */
+#define WAIT_FOR(condition)                                             \
+  G_STMT_START {                                                        \
+    gint64 end_ = g_get_monotonic_time () + 5 * G_USEC_PER_SEC;         \
+    while (!(condition) && g_get_monotonic_time () < end_)              \
+      g_main_context_iteration (NULL, FALSE);                           \
+  } G_STMT_END
+
+
+
+static void
+emit_action (GDBusConnection *connection,
+             guint            id,
+             const gchar     *action)
+{
+  g_dbus_connection_emit_signal (connection, NULL, "/org/freedesktop/Notifications",
+                                 "org.freedesktop.Notifications", "ActionInvoked",
+                                 g_variant_new ("(us)", id, action), NULL);
+  g_dbus_connection_flush_sync (connection, NULL, NULL);
+}
 
 
 
@@ -254,12 +296,15 @@ test_notify (void)
   GTestDBus       *bus;
   GDBusConnection *connection;
   GDBusNodeInfo   *info;
-  GVariant        *received = NULL;
+  ShopnoCalTimer  *timer;
+  Server           server = { NULL, 0 };
   GVariant        *hints;
   const gchar     *app_name;
   const gchar     *icon;
   const gchar     *summary;
   const gchar     *body;
+  const gchar    **actions;
+  guint            replaces;
   guint            id;
   guchar           urgency;
 
@@ -274,33 +319,67 @@ test_notify (void)
    * unique name is delivered like any other */
   info = g_dbus_node_info_new_for_xml (introspection, NULL);
   id = g_dbus_connection_register_object (connection, "/org/freedesktop/Notifications",
-                                          info->interfaces[0], &vtable, &received, NULL, NULL);
+                                          info->interfaces[0], &vtable, &server, NULL, NULL);
   g_dbus_node_info_unref (info);
   g_variant_unref (g_dbus_connection_call_sync (connection, "org.freedesktop.DBus", "/org/freedesktop/DBus",
                                                 "org.freedesktop.DBus", "RequestName",
                                                 g_variant_new ("(su)", "org.freedesktop.Notifications", 0),
                                                 NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL));
 
-  shopno_cal_timer_notify (connection, 25 * 60);
-  {
-    gint64 end = g_get_monotonic_time () + 5 * G_USEC_PER_SEC;
+  timer = shopno_cal_timer_new ();
+  shopno_cal_timer_set_duration (timer, 25 * 60);
+  shopno_cal_timer_notify (timer, connection);
+  WAIT_FOR (server.notify != NULL);
+  g_assert_nonnull (server.notify);
 
-    while (received == NULL && g_get_monotonic_time () < end)
-      g_main_context_iteration (NULL, TRUE);
-  }
-  g_assert_nonnull (received);
-
-  g_variant_get (received, "(&su&s&s&s^a&s@a{sv}i)",
-                 &app_name, NULL, &icon, &summary, &body, NULL, &hints, NULL);
+  g_variant_get (server.notify, "(&su&s&s&s^a&s@a{sv}i)",
+                 &app_name, &replaces, &icon, &summary, &body, &actions, &hints, NULL);
   g_assert_cmpstr (app_name, ==, "Shopno Calendar");
+  g_assert_cmpuint (replaces, ==, 0);
   g_assert_cmpstr (icon, ==, "shopno-calendar");
   g_assert_cmpstr (summary, ==, "Timer finished");
   g_assert_cmpstr (body, ==, "25 minutes are up.");
+  g_assert_cmpuint (g_strv_length ((gchar **) actions), ==, 2);
+  g_assert_cmpstr (actions[0], ==, "restart");
+  g_assert_cmpstr (actions[1], ==, "Restart");
   g_assert_true (g_variant_lookup (hints, "urgency", "y", &urgency));
   g_assert_cmpuint (urgency, ==, 1);
-
+  g_free (actions);
   g_variant_unref (hints);
-  g_variant_unref (received);
+
+  /* The next one replaces it, once the server has answered with its id */
+  g_clear_pointer (&server.notify, g_variant_unref);
+  run (200, NULL);
+  shopno_cal_timer_notify (timer, connection);
+  WAIT_FOR (server.notify != NULL);
+  g_variant_get_child (server.notify, 1, "u", &replaces);
+  g_assert_cmpuint (replaces, ==, 7);
+  run (200, NULL);
+
+  /* Another notification's action, or another action, does nothing */
+  emit_action (connection, 8, "restart");
+  emit_action (connection, 7, "default");
+  run (200, NULL);
+  g_assert_cmpint (shopno_cal_timer_get_state (timer), ==, SHOPNO_CAL_TIMER_IDLE);
+
+  /* Restart starts the timer again, and the server closes the
+   * notification itself */
+  emit_action (connection, 7, "restart");
+  WAIT_FOR (shopno_cal_timer_get_state (timer) == SHOPNO_CAL_TIMER_RUNNING);
+  g_assert_cmpint (shopno_cal_timer_get_state (timer), ==, SHOPNO_CAL_TIMER_RUNNING);
+  run (200, NULL);
+  g_assert_cmpuint (server.closed, ==, 0);
+
+  /* Started from the flyout instead, the timer closes it */
+  shopno_cal_timer_reset (timer);
+  shopno_cal_timer_notify (timer, connection);
+  run (200, NULL);
+  shopno_cal_timer_start (timer);
+  WAIT_FOR (server.closed != 0);
+  g_assert_cmpuint (server.closed, ==, 7);
+
+  g_object_unref (timer);
+  g_clear_pointer (&server.notify, g_variant_unref);
   g_dbus_connection_unregister_object (connection, id);
   g_object_unref (connection);
   g_test_dbus_down (bus);
