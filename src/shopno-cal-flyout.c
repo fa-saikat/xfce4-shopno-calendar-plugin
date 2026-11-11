@@ -82,6 +82,7 @@ struct _ShopnoCalFlyout
   GtkWidget         *footer;
   GtkWidget         *status_label;
   GtkWidget         *copy_button;
+  GtkWidget         *copy_rows[SHOPNO_CAL_COPY_N_FORMATS];
   GtkWidget         *copy_values[SHOPNO_CAL_COPY_N_FORMATS];
   guint              status_timeout_id;
 
@@ -889,6 +890,60 @@ shopno_cal_flyout_update_copy_values (ShopnoCalFlyout *self)
 
 
 
+/* Lays out the rows of the copy menu with the name and the value side by
+ * side, as in the mockup, or the name over the value when that would be
+ * wider than the flyout: GTK cuts a popover off at its window's edges,
+ * and a long date in a large font does not fit beside its name */
+static void
+shopno_cal_flyout_fit_copy_menu (ShopnoCalFlyout *self)
+{
+  GtkPopover      *popover = gtk_menu_button_get_popover (GTK_MENU_BUTTON (self->copy_button));
+  GtkStyleContext *context = gtk_widget_get_style_context (GTK_WIDGET (popover));
+  GtkBorder        padding;
+  GtkBorder        border;
+  gint             width;
+  gboolean         stacked;
+  guint            i;
+
+  for (i = 0; i < SHOPNO_CAL_COPY_N_FORMATS; i++)
+    {
+      gtk_orientable_set_orientation (GTK_ORIENTABLE (self->copy_rows[i]), GTK_ORIENTATION_HORIZONTAL);
+      gtk_box_set_spacing (GTK_BOX (self->copy_rows[i]), 12);
+      gtk_label_set_xalign (GTK_LABEL (self->copy_values[i]), 1.0);
+    }
+
+  /* The popover's own width also counts the room for its shadow, which may
+   * reach the window's edge; its padding and border may not */
+  gtk_widget_get_preferred_width (gtk_bin_get_child (GTK_BIN (popover)), NULL, &width);
+  gtk_style_context_get_padding (context, gtk_style_context_get_state (context), &padding);
+  gtk_style_context_get_border (context, gtk_style_context_get_state (context), &border);
+  width += padding.left + padding.right + border.left + border.right;
+
+  /* Keep a few pixels clear of the flyout's sides */
+  stacked = width > gtk_widget_get_allocated_width (GTK_WIDGET (self)) - 8;
+
+  if (stacked)
+    for (i = 0; i < SHOPNO_CAL_COPY_N_FORMATS; i++)
+      {
+        gtk_orientable_set_orientation (GTK_ORIENTABLE (self->copy_rows[i]), GTK_ORIENTATION_VERTICAL);
+        gtk_box_set_spacing (GTK_BOX (self->copy_rows[i]), 2);
+        gtk_label_set_xalign (GTK_LABEL (self->copy_values[i]), 0.0);
+      }
+
+  shopno_cal_flyout_set_class (GTK_WIDGET (popover), "stacked", stacked);
+}
+
+
+
+static void
+shopno_cal_flyout_copy_menu_shown (ShopnoCalFlyout *self)
+{
+  shopno_cal_flyout_update_copy_values (self);
+  shopno_cal_flyout_fit_copy_menu (self);
+}
+
+
+
 static gboolean
 shopno_cal_flyout_copy_menu_open (ShopnoCalFlyout *self)
 {
@@ -1556,6 +1611,7 @@ shopno_cal_flyout_copy_menu_new (ShopnoCalFlyout *self)
 
       row_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 12);
       gtk_container_add (GTK_CONTAINER (row), row_box);
+      self->copy_rows[i] = row_box;
 
       label = shopno_cal_flyout_label_new ("shopno-cal-copy-name");
       gtk_label_set_text (GTK_LABEL (label), shopno_cal_format_copy_name (i));
@@ -1567,9 +1623,9 @@ shopno_cal_flyout_copy_menu_new (ShopnoCalFlyout *self)
       gtk_box_pack_end (GTK_BOX (row_box), self->copy_values[i], FALSE, FALSE, 0);
     }
 
-  /* Current values each time it opens */
+  /* Current values each time it opens, laid out to fit */
   g_signal_connect_swapped (popover, "show",
-                            G_CALLBACK (shopno_cal_flyout_update_copy_values), self);
+                            G_CALLBACK (shopno_cal_flyout_copy_menu_shown), self);
   gtk_widget_show_all (box);
 
   return popover;

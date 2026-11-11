@@ -282,6 +282,12 @@ button.shopno-cal-copy-item {
   padding: 7px 10px;
 }
 
+/* With the name over the value, when side by side is too wide */
+popover.stacked button.shopno-cal-copy-item {
+  min-width: 0;
+  padding: 6px 10px;
+}
+
 .shopno-cal-copy-name {
   font-size: smaller;
   color: alpha(@theme_fg_color, 0.55);
