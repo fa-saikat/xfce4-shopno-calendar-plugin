@@ -127,6 +127,22 @@ instead of the built-in Xfce compositor:
 With blur off, the calendar draws its own rounded corners and works with
 any compositor, or none.
 
+## How it is checked
+
+- CI builds the plugin with warnings as errors and runs the tests on
+  Debian 13, Ubuntu 24.04, Fedora and Arch, and builds and
+  install-tests the packages for each of them.
+- The tests cover the month grid, week numbers and working days, the
+  day details, the clock formats, the clock sync state and the timer,
+  with fake timedated and notification servers on a private bus.
+- In November 2026 the plugin went through AddressSanitizer,
+  LeakSanitizer, UBSan, valgrind, GCC's static analyzer and cppcheck,
+  with a scripted session through every part of the flyout, plus 200
+  open-and-close cycles in a real panel while its memory was measured.
+  Nothing leaked from the plugin's own code; the memory a session
+  leaves behind is fontconfig's and the GL driver's, and the same for
+  a short session as for a long one.
+
 ## Credits
 
 Shopno Calendar builds on:

@@ -21,6 +21,11 @@
 
 G_BEGIN_DECLS
 
+/* A day in a g_date_time_format() format, or "" when the format gives
+ * nothing, such as a broken translation */
+gchar *shopno_cal_details_format      (const GDate      *date,
+                                       const gchar      *format);
+
 /* The details under the calendar have a title over a line of facts.
  *
  * For one day the title is "Today" or the full date, and the facts are

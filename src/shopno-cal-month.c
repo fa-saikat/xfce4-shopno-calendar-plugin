@@ -201,5 +201,5 @@ shopno_cal_month_weekday_name (GDateWeekday weekday,
   name = g_date_time_format (day, abbreviated ? "%a" : "%A");
   g_date_time_unref (day);
 
-  return name;
+  return name != NULL ? name : g_strdup ("");
 }

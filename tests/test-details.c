@@ -183,6 +183,27 @@ test_tooltip (void)
 
 
 
+static void
+test_format (void)
+{
+  GDate  day;
+  gchar *text;
+
+  g_date_clear (&day, 1);
+  g_date_set_dmy (&day, 2, G_DATE_DECEMBER, 2026);
+
+  text = shopno_cal_details_format (&day, "%Y-%m-%d");
+  g_assert_cmpstr (text, ==, "2026-12-02");
+  g_free (text);
+
+  /* A format GLib rejects, as a broken translation could be */
+  text = shopno_cal_details_format (&day, "%Q");
+  g_assert_cmpstr (text, ==, "");
+  g_free (text);
+}
+
+
+
 int
 main (int    argc,
       char **argv)
@@ -190,6 +211,7 @@ main (int    argc,
   setlocale (LC_ALL, "");
   g_test_init (&argc, &argv, NULL);
 
+  g_test_add_func ("/details/format", test_format);
   g_test_add_func ("/details/day", test_day);
   g_test_add_func ("/details/range-title", test_range_title);
   g_test_add_func ("/details/range", test_range);

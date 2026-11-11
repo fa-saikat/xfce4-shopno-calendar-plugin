@@ -53,7 +53,7 @@ typedef enum
 /* The name of a copy format in the menu, translated */
 const gchar *shopno_cal_format_copy_name (ShopnoCalCopyFormat format);
 
-/* The time in a copy format */
+/* The time in a copy format, never NULL */
 gchar       *shopno_cal_format_copy      (GDateTime          *time,
                                           ShopnoCalCopyFormat format);
 
