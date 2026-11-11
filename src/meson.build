@@ -26,6 +26,7 @@ shopno_cal_core = static_library(
     'shopno-cal-format.c',
     'shopno-cal-month.c',
     'shopno-cal-settings.c',
+    'shopno-cal-sync.c',
     resources,
   ],
   include_directories: config_inc,
