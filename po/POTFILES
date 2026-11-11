@@ -2,4 +2,6 @@ data/shopno-calendar.desktop.in
 src/shopno-cal-details.c
 src/shopno-cal-dialog.c
 src/shopno-cal-flyout.c
+src/shopno-cal-format.c
 src/shopno-cal-plugin.c
+src/shopno-cal-sync.c

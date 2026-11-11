@@ -106,6 +106,7 @@ shopno_cal_plugin_load_settings (ShopnoCalPlugin *self)
   shopno_cal_plugin_bind (self, "day-details", G_TYPE_BOOLEAN);
   shopno_cal_plugin_bind (self, "show-tooltip", G_TYPE_BOOLEAN);
   shopno_cal_plugin_bind (self, "copy-button", G_TYPE_BOOLEAN);
+  shopno_cal_plugin_bind (self, "time-settings-command", G_TYPE_STRING);
 }
 
 

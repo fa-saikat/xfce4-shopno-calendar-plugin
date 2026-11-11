@@ -32,6 +32,7 @@ enum
   PROP_DAY_DETAILS,
   PROP_SHOW_TOOLTIP,
   PROP_COPY_BUTTON,
+  PROP_TIME_SETTINGS_COMMAND,
   N_PROPERTIES
 };
 
@@ -49,6 +50,7 @@ struct _ShopnoCalSettings
   gboolean day_details;
   gboolean show_tooltip;
   gboolean copy_button;
+  gchar   *time_settings_command;
 };
 
 static GParamSpec *properties[N_PROPERTIES];
@@ -120,6 +122,10 @@ shopno_cal_settings_get_property (GObject    *object,
 
     case PROP_COPY_BUTTON:
       g_value_set_boolean (value, self->copy_button);
+      break;
+
+    case PROP_TIME_SETTINGS_COMMAND:
+      g_value_set_string (value, self->time_settings_command);
       break;
 
     default:
@@ -225,6 +231,15 @@ shopno_cal_settings_set_property (GObject      *object,
         }
       break;
 
+    case PROP_TIME_SETTINGS_COMMAND:
+      if (g_strcmp0 (self->time_settings_command, g_value_get_string (value)) != 0)
+        {
+          g_free (self->time_settings_command);
+          self->time_settings_command = g_value_dup_string (value);
+          g_object_notify_by_pspec (object, pspec);
+        }
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -239,6 +254,7 @@ shopno_cal_settings_finalize (GObject *object)
   ShopnoCalSettings *self = SHOPNO_CAL_SETTINGS (object);
 
   g_free (self->custom_format);
+  g_free (self->time_settings_command);
 
   G_OBJECT_CLASS (shopno_cal_settings_parent_class)->finalize (object);
 }
@@ -305,6 +321,12 @@ shopno_cal_settings_class_init (ShopnoCalSettingsClass *klass)
                           TRUE,
                           G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
 
+  /* Empty for SHOPNO_CAL_DEFAULT_TIME_SETTINGS_COMMAND */
+  properties[PROP_TIME_SETTINGS_COMMAND] =
+    g_param_spec_string ("time-settings-command", NULL, NULL,
+                         "",
+                         G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
   g_object_class_install_properties (object_class, N_PROPERTIES, properties);
 }
 
@@ -323,6 +345,7 @@ shopno_cal_settings_init (ShopnoCalSettings *self)
   self->day_details = TRUE;
   self->show_tooltip = TRUE;
   self->copy_button = TRUE;
+  self->time_settings_command = g_strdup ("");
 }
 
 
@@ -431,4 +454,18 @@ shopno_cal_settings_get_copy_button (ShopnoCalSettings *settings)
   g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), TRUE);
 
   return settings->copy_button;
+}
+
+
+
+/* The command of the settings button: the one set, or the default */
+const gchar *
+shopno_cal_settings_get_time_settings_command (ShopnoCalSettings *settings)
+{
+  g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), SHOPNO_CAL_DEFAULT_TIME_SETTINGS_COMMAND);
+
+  if (settings->time_settings_command == NULL || *settings->time_settings_command == '\0')
+    return SHOPNO_CAL_DEFAULT_TIME_SETTINGS_COMMAND;
+
+  return settings->time_settings_command;
 }

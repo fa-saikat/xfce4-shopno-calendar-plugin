@@ -56,6 +56,9 @@ typedef enum
 
 #define SHOPNO_CAL_DEFAULT_CUSTOM_FORMAT "%a %e %b, %H:%M"
 
+/* The system's Date & Time settings, from gnome-system-tools or MATE */
+#define SHOPNO_CAL_DEFAULT_TIME_SETTINGS_COMMAND "time-admin"
+
 #define SHOPNO_TYPE_CAL_SETTINGS (shopno_cal_settings_get_type ())
 G_DECLARE_FINAL_TYPE (ShopnoCalSettings, shopno_cal_settings, SHOPNO, CAL_SETTINGS, GObject)
 
@@ -71,6 +74,7 @@ gboolean           shopno_cal_settings_get_week_numbers  (ShopnoCalSettings *set
 gboolean           shopno_cal_settings_get_day_details   (ShopnoCalSettings *settings);
 gboolean           shopno_cal_settings_get_show_tooltip  (ShopnoCalSettings *settings);
 gboolean           shopno_cal_settings_get_copy_button   (ShopnoCalSettings *settings);
+const gchar       *shopno_cal_settings_get_time_settings_command (ShopnoCalSettings *settings);
 
 G_END_DECLS
 

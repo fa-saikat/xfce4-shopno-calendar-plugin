@@ -15,11 +15,13 @@
 #include "config.h"
 
 #include <glib/gi18n-lib.h>
+#include <libxfce4ui/libxfce4ui.h>
 
 #include "shopno-cal-details.h"
 #include "shopno-cal-flyout.h"
 #include "shopno-cal-format.h"
 #include "shopno-cal-month.h"
+#include "shopno-cal-sync.h"
 
 /* The pointer is often still grabbed by the panel button when the flyout
  * maps, so retry the seat grab a few times before giving up (from Shopno
@@ -57,6 +59,7 @@ struct _ShopnoCalFlyout
 
   ShopnoCalSettings *settings;
   ShopnoCalClock    *clock;
+  ShopnoCalSync     *sync;
 
   GtkWidget         *frame;
   GtkWidget         *time_label;
@@ -80,8 +83,10 @@ struct _ShopnoCalFlyout
   GtkWidget         *range_title;
   GtkWidget         *range_facts;
   GtkWidget         *footer;
+  GtkWidget         *status_dot;
   GtkWidget         *status_label;
   GtkWidget         *copy_button;
+  GtkWidget         *time_settings_button;
   GtkWidget         *copy_rows[SHOPNO_CAL_COPY_N_FORMATS];
   GtkWidget         *copy_values[SHOPNO_CAL_COPY_N_FORMATS];
   guint              status_timeout_id;
@@ -828,13 +833,60 @@ shopno_cal_flyout_week_settings_changed (ShopnoCalFlyout *self)
 
 /* Footer */
 
+/* Whether the program of the settings button's command is installed */
+static gboolean
+shopno_cal_flyout_time_settings_found (ShopnoCalFlyout *self)
+{
+  const gchar  *command = shopno_cal_settings_get_time_settings_command (self->settings);
+  gchar       **argv = NULL;
+  gchar        *path = NULL;
+
+  if (g_shell_parse_argv (command, NULL, &argv, NULL))
+    path = g_find_program_in_path (argv[0]);
+
+  g_strfreev (argv);
+  g_free (path);
+
+  return path != NULL;
+}
+
+
+
+/* The footer shows the clock sync state, or for a moment what was copied
+ * instead */
+static void
+shopno_cal_flyout_update_status (ShopnoCalFlyout *self)
+{
+  ShopnoCalSyncState state = shopno_cal_sync_get_state (self->sync);
+  const gchar       *text = shopno_cal_sync_describe (state);
+  gboolean           warning = state != SHOPNO_CAL_SYNC_SYNCED;
+
+  /* What was copied is showing */
+  if (self->status_timeout_id != 0)
+    return;
+
+  gtk_label_set_text (GTK_LABEL (self->status_label), text);
+  gtk_widget_set_visible (self->status_dot, text != NULL);
+  shopno_cal_flyout_set_class (self->status_dot, "warning", warning);
+  shopno_cal_flyout_set_class (self->status_label, "warning", warning);
+}
+
+
+
+/* The footer is there when it has something: the sync state, the copy
+ * button, or the settings button */
 static void
 shopno_cal_flyout_update_footer (ShopnoCalFlyout *self)
 {
   gboolean copy = shopno_cal_settings_get_copy_button (self->settings);
+  gboolean time_settings = shopno_cal_flyout_time_settings_found (self);
+  gboolean sync = shopno_cal_sync_get_state (self->sync) != SHOPNO_CAL_SYNC_UNKNOWN;
 
   gtk_widget_set_visible (self->copy_button, copy);
-  gtk_widget_set_visible (self->footer, copy);
+  gtk_widget_set_visible (self->time_settings_button, time_settings);
+  gtk_widget_set_visible (self->footer, copy || time_settings || sync);
+
+  shopno_cal_flyout_update_status (self);
 }
 
 
@@ -843,7 +895,7 @@ static void
 shopno_cal_flyout_clear_status (ShopnoCalFlyout *self)
 {
   g_clear_handle_id (&self->status_timeout_id, g_source_remove);
-  gtk_label_set_text (GTK_LABEL (self->status_label), NULL);
+  shopno_cal_flyout_update_status (self);
 }
 
 
@@ -973,8 +1025,29 @@ shopno_cal_flyout_copy_clicked (GtkWidget       *row,
   text = g_strdup_printf (_("Copied %s"), value);
   g_clear_handle_id (&self->status_timeout_id, g_source_remove);
   gtk_label_set_text (GTK_LABEL (self->status_label), text);
+  gtk_widget_hide (self->status_dot);
+  shopno_cal_flyout_set_class (self->status_label, "warning", FALSE);
   self->status_timeout_id = g_timeout_add (STATUS_TIMEOUT, shopno_cal_flyout_status_timeout, self);
   g_free (text);
+}
+
+
+
+static void
+shopno_cal_flyout_time_settings_clicked (ShopnoCalFlyout *self)
+{
+  GdkScreen *screen = gtk_widget_get_screen (GTK_WIDGET (self));
+  GError    *error = NULL;
+
+  /* Out of the way of the settings window */
+  gtk_widget_hide (GTK_WIDGET (self));
+
+  if (!xfce_spawn_command_line (screen, shopno_cal_settings_get_time_settings_command (self->settings),
+                                FALSE, TRUE, TRUE, &error))
+    {
+      xfce_dialog_show_error (NULL, error, _("Failed to open the Date & Time settings"));
+      g_error_free (error);
+    }
 }
 
 
@@ -1442,7 +1515,12 @@ shopno_cal_flyout_constructed (GObject *object)
   g_signal_connect_swapped (self->settings, "notify::day-details",
                             G_CALLBACK (shopno_cal_flyout_day_details_changed), self);
   shopno_cal_flyout_day_details_changed (self);
+  self->sync = shopno_cal_sync_new ();
+  g_signal_connect_swapped (self->sync, "changed",
+                            G_CALLBACK (shopno_cal_flyout_update_footer), self);
   g_signal_connect_swapped (self->settings, "notify::copy-button",
+                            G_CALLBACK (shopno_cal_flyout_update_footer), self);
+  g_signal_connect_swapped (self->settings, "notify::time-settings-command",
                             G_CALLBACK (shopno_cal_flyout_update_footer), self);
   shopno_cal_flyout_update_footer (self);
   g_signal_connect_swapped (self->clock, "tick",
@@ -1460,6 +1538,12 @@ shopno_cal_flyout_dispose (GObject *object)
 
   shopno_cal_flyout_ungrab (self);
   g_clear_handle_id (&self->status_timeout_id, g_source_remove);
+
+  if (self->sync != NULL)
+    {
+      g_signal_handlers_disconnect_by_data (self->sync, self);
+      g_clear_object (&self->sync);
+    }
 
   if (self->settings != NULL)
     {
@@ -1582,6 +1666,21 @@ shopno_cal_flyout_details_label_new (const gchar *style_class)
   gtk_label_set_max_width_chars (GTK_LABEL (label), 1);
 
   return label;
+}
+
+
+
+/* The sync dot is all background: its color and roundness come from the
+ * style */
+static gboolean
+shopno_cal_flyout_draw_dot (GtkWidget *widget,
+                            cairo_t   *cr)
+{
+  gtk_render_background (gtk_widget_get_style_context (widget), cr, 0, 0,
+                         gtk_widget_get_allocated_width (widget),
+                         gtk_widget_get_allocated_height (widget));
+
+  return FALSE;
 }
 
 
@@ -1846,10 +1945,31 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
   gtk_style_context_add_class (gtk_widget_get_style_context (self->footer), "shopno-cal-footer");
   gtk_box_pack_end (GTK_BOX (self->frame), self->footer, FALSE, FALSE, 0);
 
+  /* The sync state: a dot in the theme's success or warning color, and
+   * its text */
+  self->status_dot = gtk_drawing_area_new ();
+  gtk_style_context_add_class (gtk_widget_get_style_context (self->status_dot), "shopno-cal-sync-dot");
+  gtk_widget_set_size_request (self->status_dot, 8, 8);
+  gtk_widget_set_margin_end (self->status_dot, 4);
+  gtk_widget_set_valign (self->status_dot, GTK_ALIGN_CENTER);
+  g_signal_connect (self->status_dot, "draw", G_CALLBACK (shopno_cal_flyout_draw_dot), NULL);
+  gtk_widget_set_no_show_all (self->status_dot, TRUE);
+  gtk_box_pack_start (GTK_BOX (self->footer), self->status_dot, FALSE, FALSE, 0);
+
   self->status_label = shopno_cal_flyout_label_new ("shopno-cal-footer-status");
   gtk_label_set_xalign (GTK_LABEL (self->status_label), 0.0);
   gtk_label_set_ellipsize (GTK_LABEL (self->status_label), PANGO_ELLIPSIZE_END);
   gtk_box_pack_start (GTK_BOX (self->footer), self->status_label, TRUE, TRUE, 0);
+
+  /* Packed from the right: the settings button, then copy */
+  self->time_settings_button = shopno_cal_flyout_arrow_new ("emblem-system-symbolic");
+  gtk_widget_set_valign (self->time_settings_button, GTK_ALIGN_CENTER);
+  gtk_widget_set_no_show_all (self->time_settings_button, TRUE);
+  gtk_widget_set_tooltip_text (self->time_settings_button, _("Date & Time settings"));
+  shopno_cal_flyout_set_accessible_name (self->time_settings_button, _("Date & Time settings"));
+  g_signal_connect_swapped (self->time_settings_button, "clicked",
+                            G_CALLBACK (shopno_cal_flyout_time_settings_clicked), self);
+  gtk_box_pack_end (GTK_BOX (self->footer), self->time_settings_button, FALSE, FALSE, 0);
 
   self->copy_button = gtk_menu_button_new ();
   gtk_button_set_relief (GTK_BUTTON (self->copy_button), GTK_RELIEF_NONE);
@@ -1894,6 +2014,11 @@ shopno_cal_flyout_popup (ShopnoCalFlyout *flyout,
   /* Open on today, like Windows */
   shopno_cal_flyout_update (flyout);
   shopno_cal_flyout_show_today (flyout);
+
+  /* The sync state does not announce every change, and the settings
+   * program may have been installed or removed */
+  shopno_cal_sync_refresh (flyout->sync);
+  shopno_cal_flyout_update_footer (flyout);
 
   gtk_window_move (GTK_WINDOW (flyout), x, y);
   gtk_window_present_with_time (GTK_WINDOW (flyout), gtk_get_current_event_time ());

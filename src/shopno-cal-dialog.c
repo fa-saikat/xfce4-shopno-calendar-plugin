@@ -421,6 +421,20 @@ shopno_cal_dialog_new (GtkWindow         *parent,
   g_object_bind_property (settings, "copy-button", check, "active", BINDING_FLAGS);
   gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
 
+  label = gtk_label_new_with_mnemonic (_("Dat_e & Time settings:"));
+  gtk_label_set_xalign (GTK_LABEL (label), 0.0);
+  gtk_widget_set_margin_start (label, 12);
+  gtk_grid_attach (GTK_GRID (grid), label, 0, row, 1, 1);
+
+  entry = gtk_entry_new ();
+  gtk_entry_set_placeholder_text (GTK_ENTRY (entry), SHOPNO_CAL_DEFAULT_TIME_SETTINGS_COMMAND);
+  gtk_widget_set_tooltip_text (entry, _("The command the settings button in the calendar runs. "
+                                        "Leave it empty for time-admin. The button is hidden "
+                                        "when the command is not installed."));
+  gtk_label_set_mnemonic_widget (GTK_LABEL (label), entry);
+  g_object_bind_property (settings, "time-settings-command", entry, "text", BINDING_FLAGS);
+  gtk_grid_attach (GTK_GRID (grid), entry, 1, row++, 1, 1);
+
   gtk_widget_show_all (grid);
 
   return dialog;
