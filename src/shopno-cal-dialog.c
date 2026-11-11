@@ -421,6 +421,14 @@ shopno_cal_dialog_new (GtkWindow         *parent,
   g_object_bind_property (settings, "copy-button", check, "active", BINDING_FLAGS);
   gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
 
+  check = gtk_check_button_new_with_mnemonic (_("Show the ti_mer"));
+  gtk_widget_set_tooltip_text (check, _("A countdown of 1, 5, 15 or 25 minutes that ends with a "
+                                        "desktop notification, and keeps running when the "
+                                        "calendar is closed"));
+  gtk_widget_set_margin_start (check, 12);
+  g_object_bind_property (settings, "timer", check, "active", BINDING_FLAGS);
+  gtk_grid_attach (GTK_GRID (grid), check, 0, row++, 2, 1);
+
   label = gtk_label_new_with_mnemonic (_("Dat_e & Time settings:"));
   gtk_label_set_xalign (GTK_LABEL (label), 0.0);
   gtk_widget_set_margin_start (label, 12);

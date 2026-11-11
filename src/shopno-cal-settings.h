@@ -75,6 +75,7 @@ gboolean           shopno_cal_settings_get_day_details   (ShopnoCalSettings *set
 gboolean           shopno_cal_settings_get_show_tooltip  (ShopnoCalSettings *settings);
 gboolean           shopno_cal_settings_get_copy_button   (ShopnoCalSettings *settings);
 const gchar       *shopno_cal_settings_get_time_settings_command (ShopnoCalSettings *settings);
+gboolean           shopno_cal_settings_get_timer         (ShopnoCalSettings *settings);
 
 G_END_DECLS
 

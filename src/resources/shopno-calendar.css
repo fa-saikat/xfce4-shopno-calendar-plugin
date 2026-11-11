@@ -310,3 +310,46 @@ popover.stacked button.shopno-cal-copy-item {
 .shopno-cal-copy-value {
   font-feature-settings: "tnum";
 }
+
+/* Timer: the ring and the time left, with the start and reset buttons,
+ * over a row of the presets */
+
+.shopno-cal-timer {
+  padding: 12px 20px;
+  border-top: 1px solid alpha(@theme_fg_color, 0.08);
+}
+
+.shopno-cal-timer-readout {
+  min-width: 70px;
+  font-size: 16pt;
+  font-weight: 500;
+  font-feature-settings: "tnum";
+}
+
+button.shopno-cal-chip {
+  min-width: 0;
+  min-height: 0;
+  padding: 4px 8px;
+  border: 1px solid alpha(@theme_fg_color, 0.12);
+  border-radius: 3px;
+  background: alpha(@theme_fg_color, 0.07);
+  box-shadow: none;
+  text-shadow: none;
+  color: @theme_fg_color;
+  font-size: 90%;
+}
+
+button.shopno-cal-chip:hover {
+  border-color: @theme_selected_bg_color;
+}
+
+button.shopno-cal-chip:active {
+  background: alpha(@theme_fg_color, 0.14);
+}
+
+/* The preset the idle timer is set to */
+button.shopno-cal-chip.on {
+  border-color: @theme_selected_bg_color;
+  background: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+}
