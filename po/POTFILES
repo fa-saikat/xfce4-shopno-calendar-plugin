@@ -5,3 +5,4 @@ src/shopno-cal-flyout.c
 src/shopno-cal-format.c
 src/shopno-cal-plugin.c
 src/shopno-cal-sync.c
+src/shopno-cal-timer.c

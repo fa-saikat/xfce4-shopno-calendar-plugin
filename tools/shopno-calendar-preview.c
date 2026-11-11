@@ -36,6 +36,7 @@ static gint     opt_weekend = SHOPNO_CAL_WEEKEND_SATURDAY_SUNDAY;
 static gboolean opt_week_numbers = FALSE;
 static gboolean opt_no_day_details = FALSE;
 static gboolean opt_no_copy = FALSE;
+static gboolean opt_no_timer = FALSE;
 
 static const GOptionEntry entries[] =
 {
@@ -49,6 +50,7 @@ static const GOptionEntry entries[] =
   { "week-numbers", 0, 0, G_OPTION_ARG_NONE, &opt_week_numbers, "Show week numbers", NULL },
   { "no-day-details", 0, 0, G_OPTION_ARG_NONE, &opt_no_day_details, "Hide the day details", NULL },
   { "no-copy", 0, 0, G_OPTION_ARG_NONE, &opt_no_copy, "Hide the copy button", NULL },
+  { "no-timer", 0, 0, G_OPTION_ARG_NONE, &opt_no_timer, "Hide the timer", NULL },
   { NULL }
 };
 
@@ -81,6 +83,7 @@ main (int    argc,
                 "week-numbers", opt_week_numbers,
                 "day-details", !opt_no_day_details,
                 "copy-button", !opt_no_copy,
+                "timer", !opt_no_timer,
                 NULL);
 
   clock = shopno_cal_clock_new ();

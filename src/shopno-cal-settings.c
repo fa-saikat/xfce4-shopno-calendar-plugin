@@ -33,6 +33,7 @@ enum
   PROP_SHOW_TOOLTIP,
   PROP_COPY_BUTTON,
   PROP_TIME_SETTINGS_COMMAND,
+  PROP_TIMER,
   N_PROPERTIES
 };
 
@@ -51,6 +52,7 @@ struct _ShopnoCalSettings
   gboolean show_tooltip;
   gboolean copy_button;
   gchar   *time_settings_command;
+  gboolean timer;
 };
 
 static GParamSpec *properties[N_PROPERTIES];
@@ -126,6 +128,10 @@ shopno_cal_settings_get_property (GObject    *object,
 
     case PROP_TIME_SETTINGS_COMMAND:
       g_value_set_string (value, self->time_settings_command);
+      break;
+
+    case PROP_TIMER:
+      g_value_set_boolean (value, self->timer);
       break;
 
     default:
@@ -240,6 +246,14 @@ shopno_cal_settings_set_property (GObject      *object,
         }
       break;
 
+    case PROP_TIMER:
+      if (self->timer != g_value_get_boolean (value))
+        {
+          self->timer = g_value_get_boolean (value);
+          g_object_notify_by_pspec (object, pspec);
+        }
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -327,6 +341,11 @@ shopno_cal_settings_class_init (ShopnoCalSettingsClass *klass)
                          "",
                          G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
 
+  properties[PROP_TIMER] =
+    g_param_spec_boolean ("timer", NULL, NULL,
+                          TRUE,
+                          G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+
   g_object_class_install_properties (object_class, N_PROPERTIES, properties);
 }
 
@@ -346,6 +365,7 @@ shopno_cal_settings_init (ShopnoCalSettings *self)
   self->show_tooltip = TRUE;
   self->copy_button = TRUE;
   self->time_settings_command = g_strdup ("");
+  self->timer = TRUE;
 }
 
 
@@ -468,4 +488,14 @@ shopno_cal_settings_get_time_settings_command (ShopnoCalSettings *settings)
     return SHOPNO_CAL_DEFAULT_TIME_SETTINGS_COMMAND;
 
   return settings->time_settings_command;
+}
+
+
+
+gboolean
+shopno_cal_settings_get_timer (ShopnoCalSettings *settings)
+{
+  g_return_val_if_fail (SHOPNO_IS_CAL_SETTINGS (settings), TRUE);
+
+  return settings->timer;
 }

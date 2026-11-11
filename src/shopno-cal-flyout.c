@@ -22,6 +22,7 @@
 #include "shopno-cal-format.h"
 #include "shopno-cal-month.h"
 #include "shopno-cal-sync.h"
+#include "shopno-cal-timer.h"
 
 /* The pointer is often still grabbed by the panel button when the flyout
  * maps, so retry the seat grab a few times before giving up (from Shopno
@@ -34,6 +35,9 @@
 #define MAX_YEAR 9988
 
 #define CELL_INDEX_KEY "shopno-cal-cell-index"
+
+/* The timer's presets, in minutes */
+static const guint timer_presets[] = { 1, 5, 15, 25 };
 
 /* How long the footer says what was copied */
 #define STATUS_TIMEOUT 2500
@@ -60,6 +64,7 @@ struct _ShopnoCalFlyout
   ShopnoCalSettings *settings;
   ShopnoCalClock    *clock;
   ShopnoCalSync     *sync;
+  ShopnoCalTimer    *timer;
 
   GtkWidget         *frame;
   GtkWidget         *time_label;
@@ -82,6 +87,12 @@ struct _ShopnoCalFlyout
   GtkWidget         *day_facts;
   GtkWidget         *range_title;
   GtkWidget         *range_facts;
+  GtkWidget         *timer_section;
+  GtkWidget         *timer_ring;
+  GtkWidget         *timer_readout;
+  GtkWidget         *timer_presets[G_N_ELEMENTS (timer_presets)];
+  GtkWidget         *timer_start;
+  GtkWidget         *timer_reset;
   GtkWidget         *footer;
   GtkWidget         *status_dot;
   GtkWidget         *status_label;
@@ -831,6 +842,151 @@ shopno_cal_flyout_week_settings_changed (ShopnoCalFlyout *self)
 
 
 
+/* Timer */
+
+static void
+shopno_cal_flyout_update_timer (ShopnoCalFlyout *self)
+{
+  ShopnoCalTimerState  state = shopno_cal_timer_get_state (self->timer);
+  guint                remaining = shopno_cal_timer_get_remaining (self->timer);
+  guint                duration = shopno_cal_timer_get_duration (self->timer);
+  const gchar         *start;
+  gchar                text[16];
+  gchar               *name;
+  guint                i;
+
+  g_snprintf (text, sizeof (text), "%02u:%02u", remaining / 60, remaining % 60);
+  gtk_label_set_text (GTK_LABEL (self->timer_readout), text);
+
+  /* TRANSLATORS: the timer's readout for screen readers */
+  name = g_strdup_printf (ngettext ("%u second left", "%u seconds left", remaining), remaining);
+  shopno_cal_flyout_set_accessible_name (self->timer_readout, name);
+  g_free (name);
+
+  gtk_widget_queue_draw (self->timer_ring);
+
+  /* The preset the idle timer is set to is filled */
+  for (i = 0; i < G_N_ELEMENTS (timer_presets); i++)
+    shopno_cal_flyout_set_class (self->timer_presets[i], "on",
+                                 state == SHOPNO_CAL_TIMER_IDLE && duration == timer_presets[i] * 60);
+
+  switch (state)
+    {
+    case SHOPNO_CAL_TIMER_RUNNING:
+      start = _("Pause");
+      break;
+
+    case SHOPNO_CAL_TIMER_PAUSED:
+      start = _("Resume");
+      break;
+
+    case SHOPNO_CAL_TIMER_IDLE:
+    default:
+      start = _("Start");
+      break;
+    }
+
+  gtk_button_set_label (GTK_BUTTON (self->timer_start), start);
+  gtk_widget_set_visible (self->timer_reset, state != SHOPNO_CAL_TIMER_IDLE);
+}
+
+
+
+/* A ring of the time left, emptying clockwise from the top, over a faint
+ * full ring */
+static gboolean
+shopno_cal_flyout_draw_timer_ring (GtkWidget       *widget,
+                                   cairo_t         *cr,
+                                   ShopnoCalFlyout *self)
+{
+  GtkStyleContext *context = gtk_widget_get_style_context (widget);
+  gdouble          fraction = shopno_cal_timer_get_fraction (self->timer);
+  gdouble          size = MIN (gtk_widget_get_allocated_width (widget),
+                               gtk_widget_get_allocated_height (widget));
+  gdouble          line = 4.0;
+  gdouble          radius = (size - line) / 2.0;
+  GdkRGBA          color;
+  GdkRGBA          accent;
+
+  gtk_style_context_get_color (context, gtk_style_context_get_state (context), &color);
+  if (!gtk_style_context_lookup_color (context, "theme_selected_bg_color", &accent))
+    accent = color;
+
+  cairo_translate (cr, gtk_widget_get_allocated_width (widget) / 2.0,
+                   gtk_widget_get_allocated_height (widget) / 2.0);
+  cairo_set_line_width (cr, line);
+
+  color.alpha *= 0.12;
+  gdk_cairo_set_source_rgba (cr, &color);
+  cairo_arc (cr, 0, 0, radius, 0, 2 * G_PI);
+  cairo_stroke (cr);
+
+  if (fraction > 0.0)
+    {
+      gdk_cairo_set_source_rgba (cr, &accent);
+      cairo_set_line_cap (cr, CAIRO_LINE_CAP_ROUND);
+      cairo_arc (cr, 0, 0, radius, -G_PI_2, -G_PI_2 + 2 * G_PI * fraction);
+      cairo_stroke (cr);
+    }
+
+  return FALSE;
+}
+
+
+
+static void
+shopno_cal_flyout_timer_preset_clicked (GtkWidget       *button,
+                                        ShopnoCalFlyout *self)
+{
+  guint index = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (button), CELL_INDEX_KEY));
+
+  shopno_cal_timer_set_duration (self->timer, timer_presets[index] * 60);
+}
+
+
+
+static void
+shopno_cal_flyout_timer_start_clicked (ShopnoCalFlyout *self)
+{
+  if (shopno_cal_timer_get_state (self->timer) == SHOPNO_CAL_TIMER_RUNNING)
+    shopno_cal_timer_pause (self->timer);
+  else
+    shopno_cal_timer_start (self->timer);
+}
+
+
+
+static void
+shopno_cal_flyout_timer_reset_clicked (ShopnoCalFlyout *self)
+{
+  shopno_cal_timer_reset (self->timer);
+}
+
+
+
+/* Also when the flyout is closed: the timer keeps running */
+static void
+shopno_cal_flyout_timer_finished (ShopnoCalFlyout *self)
+{
+  shopno_cal_timer_notify (NULL, shopno_cal_timer_get_duration (self->timer));
+}
+
+
+
+static void
+shopno_cal_flyout_timer_setting_changed (ShopnoCalFlyout *self)
+{
+  gboolean timer = shopno_cal_settings_get_timer (self->settings);
+
+  gtk_widget_set_visible (self->timer_section, timer);
+
+  /* A timer that cannot be seen should not go off */
+  if (!timer)
+    shopno_cal_timer_reset (self->timer);
+}
+
+
+
 /* Footer */
 
 /* Whether the program of the settings button's command is installed */
@@ -1078,6 +1234,8 @@ shopno_cal_flyout_tick (ShopnoCalFlyout *self)
       shopno_cal_flyout_update (self);
       if (shopno_cal_flyout_copy_menu_open (self))
         shopno_cal_flyout_update_copy_values (self);
+      if (shopno_cal_timer_get_state (self->timer) == SHOPNO_CAL_TIMER_RUNNING)
+        shopno_cal_flyout_update_timer (self);
     }
 }
 
@@ -1515,6 +1673,11 @@ shopno_cal_flyout_constructed (GObject *object)
   g_signal_connect_swapped (self->settings, "notify::day-details",
                             G_CALLBACK (shopno_cal_flyout_day_details_changed), self);
   shopno_cal_flyout_day_details_changed (self);
+  g_signal_connect_swapped (self->settings, "notify::timer",
+                            G_CALLBACK (shopno_cal_flyout_timer_setting_changed), self);
+  shopno_cal_flyout_timer_setting_changed (self);
+  shopno_cal_flyout_update_timer (self);
+
   self->sync = shopno_cal_sync_new ();
   g_signal_connect_swapped (self->sync, "changed",
                             G_CALLBACK (shopno_cal_flyout_update_footer), self);
@@ -1543,6 +1706,12 @@ shopno_cal_flyout_dispose (GObject *object)
     {
       g_signal_handlers_disconnect_by_data (self->sync, self);
       g_clear_object (&self->sync);
+    }
+
+  if (self->timer != NULL)
+    {
+      g_signal_handlers_disconnect_by_data (self->timer, self);
+      g_clear_object (&self->timer);
     }
 
   if (self->settings != NULL)
@@ -1732,6 +1901,24 @@ shopno_cal_flyout_copy_menu_new (ShopnoCalFlyout *self)
 
 
 
+/* A button of the timer, packed into a row */
+static GtkWidget *
+shopno_cal_flyout_chip_new (GtkWidget   *row,
+                            const gchar *text,
+                            gboolean     expand)
+{
+  GtkWidget *button = shopno_cal_flyout_button_new ("shopno-cal-chip");
+
+  if (text != NULL)
+    gtk_button_set_label (GTK_BUTTON (button), text);
+  gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
+  gtk_box_pack_start (GTK_BOX (row), button, expand, expand, 0);
+
+  return button;
+}
+
+
+
 /* A page of the details: a title, a line of facts, and a hint */
 static GtkWidget *
 shopno_cal_flyout_details_page_new (GtkWidget   **title,
@@ -1767,6 +1954,7 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
   GtkWidget *events;
   GtkWidget *grid;
   GtkWidget *page;
+  GtkWidget *row;
   guint      i;
 
   self->grab_input = TRUE;
@@ -1939,6 +2127,56 @@ shopno_cal_flyout_init (ShopnoCalFlyout *self)
   page = shopno_cal_flyout_details_page_new (&self->range_title, &self->range_facts,
                                              _("Click any date to clear."));
   gtk_stack_add_named (GTK_STACK (self->details_stack), page, "range");
+
+  /* Timer: the ring and the time left, with the start and reset buttons,
+   * over a row of the presets */
+  self->timer = shopno_cal_timer_new ();
+  g_signal_connect_swapped (self->timer, "changed", G_CALLBACK (shopno_cal_flyout_update_timer), self);
+  g_signal_connect_swapped (self->timer, "finished", G_CALLBACK (shopno_cal_flyout_timer_finished), self);
+
+  self->timer_section = gtk_box_new (GTK_ORIENTATION_VERTICAL, 10);
+  gtk_style_context_add_class (gtk_widget_get_style_context (self->timer_section), "shopno-cal-timer");
+  gtk_box_pack_start (GTK_BOX (self->frame), self->timer_section, FALSE, FALSE, 0);
+
+  row = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+  gtk_box_pack_start (GTK_BOX (self->timer_section), row, FALSE, FALSE, 0);
+
+  self->timer_ring = gtk_drawing_area_new ();
+  gtk_widget_set_size_request (self->timer_ring, 48, 48);
+  gtk_widget_set_margin_end (self->timer_ring, 8);
+  g_signal_connect (self->timer_ring, "draw", G_CALLBACK (shopno_cal_flyout_draw_timer_ring), self);
+  gtk_box_pack_start (GTK_BOX (row), self->timer_ring, FALSE, FALSE, 0);
+
+  self->timer_readout = shopno_cal_flyout_label_new ("shopno-cal-timer-readout");
+  gtk_label_set_xalign (GTK_LABEL (self->timer_readout), 0.0);
+  gtk_box_pack_start (GTK_BOX (row), self->timer_readout, TRUE, TRUE, 0);
+
+  /* Packed from the right: reset, then start */
+  self->timer_reset = shopno_cal_flyout_chip_new (row, _("Reset"), FALSE);
+  gtk_box_reorder_child (GTK_BOX (row), self->timer_reset, -1);
+  g_signal_connect_swapped (self->timer_reset, "clicked",
+                            G_CALLBACK (shopno_cal_flyout_timer_reset_clicked), self);
+
+  self->timer_start = shopno_cal_flyout_chip_new (row, NULL, FALSE);
+  gtk_box_reorder_child (GTK_BOX (row), self->timer_start, 2);
+  g_signal_connect_swapped (self->timer_start, "clicked",
+                            G_CALLBACK (shopno_cal_flyout_timer_start_clicked), self);
+
+  /* The presets share the width */
+  row = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+  gtk_box_set_homogeneous (GTK_BOX (row), TRUE);
+  gtk_box_pack_start (GTK_BOX (self->timer_section), row, FALSE, FALSE, 0);
+
+  for (i = 0; i < G_N_ELEMENTS (timer_presets); i++)
+    {
+      gchar *text = g_strdup_printf (_("%u min"), timer_presets[i]);
+
+      self->timer_presets[i] = shopno_cal_flyout_chip_new (row, text, TRUE);
+      g_object_set_data (G_OBJECT (self->timer_presets[i]), CELL_INDEX_KEY, GUINT_TO_POINTER (i));
+      g_signal_connect (self->timer_presets[i], "clicked",
+                        G_CALLBACK (shopno_cal_flyout_timer_preset_clicked), self);
+      g_free (text);
+    }
 
   /* Footer: a status on the left, and the copy button */
   self->footer = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
