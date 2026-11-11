@@ -3,6 +3,7 @@ Section: xfce
 Priority: optional
 Maintainer: FA Saikat <fahimabrar.saikat@gmail.com>
 Build-Depends:
+ dbus-daemon <!nocheck>,
  debhelper-compat (= 13),
  gettext,
  libglib2.0-dev,

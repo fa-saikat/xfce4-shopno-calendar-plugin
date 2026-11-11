@@ -240,15 +240,38 @@ test_describe (void)
 
 
 
+static void
+test_skip_no_bus (void)
+{
+  g_test_skip ("dbus-daemon is not installed");
+}
+
+
+
 int
 main (int    argc,
       char **argv)
 {
+  gchar *dbus_daemon;
+
   setlocale (LC_ALL, "");
   g_test_init (&argc, &argv, NULL);
 
-  g_test_add ("/sync/states", Fixture, NULL, fixture_set_up, test_states, fixture_tear_down);
-  g_test_add ("/sync/no-timedated", Fixture, NULL, fixture_set_up, test_no_timedated, fixture_tear_down);
+  /* GTestDBus runs its own dbus-daemon, which is missing where the
+   * system bus is dbus-broker, as on Fedora, or in a minimal build root */
+  dbus_daemon = g_find_program_in_path ("dbus-daemon");
+  if (dbus_daemon != NULL)
+    {
+      g_test_add ("/sync/states", Fixture, NULL, fixture_set_up, test_states, fixture_tear_down);
+      g_test_add ("/sync/no-timedated", Fixture, NULL, fixture_set_up, test_no_timedated, fixture_tear_down);
+    }
+  else
+    {
+      g_test_add_func ("/sync/states", test_skip_no_bus);
+      g_test_add_func ("/sync/no-timedated", test_skip_no_bus);
+    }
+  g_free (dbus_daemon);
+
   g_test_add_func ("/sync/describe", test_describe);
 
   return g_test_run ();
