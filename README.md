@@ -20,6 +20,10 @@
   <a href="#credits">Credits</a>
 </p>
 
+> [!WARNING]
+> **This project is AI-assisted.** The majority of the code was written by AI,
+> directed and tested by the author. See [About the code](#about-the-code).
+
 ## Why this exists
 
 I'm building it for [ShopnoOS](https://github.com/fa-saikat/shopno-os), next to
